@@ -126,12 +126,12 @@ struct UrlParser
     std::string host_part;
     //query param. usually after path in url, and separated by "?" with path
     std::string query_param;
-    //port number. if not specified, it'll be 80 unless 443 when https
+    //port number. 0 if not specified
     unsigned short port;
 
 
     UrlParser()
-        : port(80)
+        : port(0)
     {
     }
 
@@ -177,14 +177,7 @@ struct UrlParser
             port = static_cast<unsigned short>(strtoul(port_str.c_str(), NULL, 10));
             if (0 == port)
             {
-                if (0 == service.compare("https"))
-                {
-                    port = 443;
-                }
-                else
-                {
-                    port = 80;
-                }
+                HTTP_CLIENT_ERROR << "port str[" << port_str << "] can not be converted to number, set port number 0";
             }
         }
 
@@ -484,7 +477,12 @@ private:
             boost::asio::ip::tcp::resolver rs(m_io_service);
 
             std::string query_host(m_urlparser.host_part);
-            std::string query_serivce(boost::lexical_cast<std::string>(m_urlparser.port));
+            std::string query_serivce(m_urlparser.service);
+            if (query_serivce.empty())//if no service name, use port
+            {
+                query_serivce = boost::lexical_cast<std::string>(m_urlparser.port);
+            }
+
             boost::asio::ip::tcp::resolver::query q(query_host, query_serivce);
             boost::asio::ip::tcp::resolver::iterator ep_iter = rs.async_resolve(q, yield[ec]);
             if (ec)
