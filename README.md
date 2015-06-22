@@ -1,11 +1,11 @@
 # asynchttpclient
 
-A C++ async HTTP client based on boost.asio library.
+A C++ async HTTP client library based on boost.asio.
 
 ### Features
 
 * only one header
-* need boost libraries: boost_system, boost_thread, boost_coroutine, boost_context
+* need boost libraries(tested on version 1.58.0), boost_system, boost_thread, boost_coroutine, boost_context...
 
 ### Examples
 
@@ -23,6 +23,6 @@ see test.cpp
 I'm a greenhand on http and boost.asio.  
 I only made a little test on Windows and Linux.  
 And it's my first git project.  
-So, contact me if error or suggestion, thanks.  
+So, please tell me if error or suggestion, thanks.  
 
 
