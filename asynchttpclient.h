@@ -277,7 +277,7 @@ public:
     void makePost(HttpClientCallback cb, const std::string& url,
         const std::map<std::string, std::string>& headers,
         const std::string& query_param,
-        std::string& body, void *request_data)
+        const std::string& body, void *request_data)
     {
         makeRequest(cb, METHOD_POST, url, headers, query_param, body, request_data);
     }
@@ -294,7 +294,7 @@ public:
     void makePut(HttpClientCallback cb, const std::string& url,
         const std::map<std::string, std::string>& headers,
         const std::string& query_param,
-        std::string& body, void *request_data)
+        const std::string& body, void *request_data)
     {
         makeRequest(cb, METHOD_PUT, url, headers, query_param, body, request_data);
     }
@@ -303,7 +303,7 @@ public:
     void makeDelete(HttpClientCallback cb, const std::string& url,
         const std::map<std::string, std::string>& headers,
         const std::string& query_param,
-        std::string& body, void *request_data)
+        const std::string& body, void *request_data)
     {
         makeRequest(cb, METHOD_DELETE, url, headers, query_param, body, request_data);
     }
