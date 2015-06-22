@@ -128,6 +128,8 @@ struct UrlParser
     std::string query_param;
     //port number. 0 if not specified
     unsigned short port;
+    //for getaddrinfo, if no port, use service name
+    std::string normalized_service;
 
 
     UrlParser()
@@ -139,18 +141,18 @@ struct UrlParser
     void Parse(const std::string& url)
     {
         size_t service_pos = url.find("://");
-        if (std::string::npos == service_pos)
-        {
-            service = "http";
-        }
-        else
+        if (std::string::npos != service_pos)
         {
             service = url.substr(0, service_pos);
             boost::algorithm::to_lower(service);
         }
+        if (service.empty())
+        {
+            service = "http";
+        }
 
         service_pos = service_pos == std::string::npos ? 0 : service_pos + 3;
-        size_t host_pos = url.find('/', service_pos);
+        size_t host_pos = url.find_first_of("/?", service_pos);
         if (std::string::npos == host_pos)
         {
             host_all = url.substr(service_pos);
@@ -161,24 +163,41 @@ struct UrlParser
             host_all = url.substr(service_pos, host_pos - service_pos);
             path = url.substr(host_pos);
         }
-        size_t param_pos = host_all.find('?');
+
+        size_t param_pos = path.find('?');
         if (std::string::npos != param_pos)
         {
-            query_param = host_all.substr(param_pos);
-            host_all = host_all.substr(param_pos);
+            query_param = path.substr(param_pos + 1);
+            path = path.substr(0, param_pos);
         }
-        host_part = host_all;
+        if (path.empty())
+        {
+            path = "/";
+        }
 
         size_t port_pos = host_all.find(':');
         if (std::string::npos != port_pos)
         {
             host_part = host_all.substr(0, port_pos);
-            std::string port_str = host_all.substr(port_pos);
+            std::string port_str = host_all.substr(port_pos + 1);
             port = static_cast<unsigned short>(strtoul(port_str.c_str(), NULL, 10));
             if (0 == port)
             {
                 HTTP_CLIENT_ERROR << "port str[" << port_str << "] can not be converted to number, set port number 0";
             }
+        }
+        else
+        {
+            host_part = host_all;
+        }
+
+        if (port)//if no port, use service name
+        {
+            normalized_service = boost::lexical_cast<std::string>(port);
+        }
+        else
+        {
+            normalized_service = service;
         }
 
         HTTP_CLIENT_INFO << "url[" << url << "] parse result:\r\n"
@@ -187,7 +206,8 @@ struct UrlParser
             << ", path=" << path
             << ", host_part=" << host_part
             << ", query_param=" << query_param
-            << ", port=" << port;
+            << ", port=" << port
+            << ", normalized_service=" << normalized_service;
     }
 };
 
@@ -477,12 +497,7 @@ private:
             boost::asio::ip::tcp::resolver rs(m_io_service);
 
             std::string query_host(m_urlparser.host_part);
-            std::string query_serivce(m_urlparser.service);
-            if (query_serivce.empty())//if no service name, use port
-            {
-                query_serivce = boost::lexical_cast<std::string>(m_urlparser.port);
-            }
-
+            std::string query_serivce(m_urlparser.normalized_service);
             boost::asio::ip::tcp::resolver::query q(query_host, query_serivce);
             boost::asio::ip::tcp::resolver::iterator ep_iter = rs.async_resolve(q, yield[ec]);
             if (ec)
@@ -714,7 +729,12 @@ private:
         default:
             break;
         }
-        ss << service_name << "://" << host << path;
+
+        if (!service_name.empty())
+        {
+            ss << service_name << "://";
+        }
+        ss << host << path;
         if (!query_param.empty())
         {
             ss << "?" << query_param;
