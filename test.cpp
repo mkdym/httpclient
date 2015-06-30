@@ -2,7 +2,7 @@
 #include "asynchttpclient.h"
 
 
-boost::asio::io_service io_service;
+boost::asio::io_service g_io_service;
 
 
 void r_cb(boost::shared_ptr<CAsyncHttpClient> pClient, const ResponseInfo& r, void *client_data, void *request_data)
@@ -35,7 +35,7 @@ void f()
     std::string body;
     while (1)
     {
-        boost::shared_ptr<CAsyncHttpClient> pClient = boost::make_shared<CAsyncHttpClient>(boost::ref(io_service), 5, MY_NULL_PTR);
+        boost::shared_ptr<CAsyncHttpClient> pClient = boost::make_shared<CAsyncHttpClient>(boost::ref(g_io_service), 5, MY_NULL_PTR);
         //pClient->makeGet(boost::bind(r_cb, pClient, _1, _2, _3), "www.baidu.com", headers, "", NULL);
         pClient->makePost(boost::bind(r_cb, pClient, _1, _2, _3), "http://www.baidu.com/123", headers, "", body, NULL);
         boost::this_thread::sleep(boost::posix_time::seconds(1));
@@ -46,10 +46,9 @@ void f()
 int main()
 {
     boost::thread t(f);
-    while (true)
     {
-        io_service.run();
-        io_service.reset();
+        boost::asio::io_service::work work(g_io_service);
+        g_io_service.run();
     }
     return 0;
 }
