@@ -214,7 +214,7 @@ struct UrlParser
 
 
 //callback function signature
-typedef boost::function<void(const ResponseInfo& r, void *client_data, void *request_data)> HttpClientCallback;
+typedef boost::function<void(const ResponseInfo& r)> HttpClientCallback;
 
 
 
@@ -230,7 +230,8 @@ enum HTTP_METHOD
 
 
 //key point: async http client class
-//ps: one instance can only make one request in its lifetime
+//class is designed to make one request in one instance's lifetime
+//you may or not get error when making request again
 //always HTTP/1.1
 class CAsyncHttpClient
 {
@@ -240,17 +241,15 @@ public:
     // name:     CAsyncHttpClient::CAsyncHttpClient
     // param:    boost::asio::io_service & io_service
     // param:    const unsigned short timeout           timeout setting, seconds
-    // param:    void * client_data                     user-defined extra data pointer
     // param:    const bool throw_in_cb                 if true, throw when exception in cb, otherwise, no-throw
     // return:   
     // ps:      
     //************************************
     CAsyncHttpClient(boost::asio::io_service& io_service,
-        const unsigned short timeout, void *client_data,
+        const unsigned short timeout,
         const bool throw_in_cb = false)
         : m_io_service(io_service)
         , m_timeout(timeout)
-        , m_client_data(client_data)
         , m_deadline_timer(io_service)
         , m_cb_called(false)
         , m_throw_in_cb(throw_in_cb)
@@ -263,7 +262,7 @@ public:
     // brief:    destructor
     // name:
     // return:
-    // ps:       if have not called cb, call cb with error "abandoned"
+    // ps:       if have not called cb and no error, call cb with error "abandoned"
     //************************************
     ~CAsyncHttpClient()
     {
@@ -283,42 +282,41 @@ public:
     // param:    const std::map<std::string, std::string> & headers     headers info of key-value style
     // param:    const std::string & query_param                        query param. usually appended to url after "?"
     // param:    std::string & body                                     post data
-    // param:    void * request_data                                    user-defined extra data pointer
     // return:   void
     // ps:       no return value, if error, it will throw
     //************************************
     void makePost(HttpClientCallback cb, const std::string& url,
         const std::map<std::string, std::string>& headers,
         const std::string& query_param,
-        const std::string& body, void *request_data)
+        const std::string& body)
     {
-        makeRequest(cb, METHOD_POST, url, headers, query_param, body, request_data);
+        makeRequest(cb, METHOD_POST, url, headers, query_param, body);
     }
 
     //see above
     void makeGet(HttpClientCallback cb, const std::string& url,
         const std::map<std::string, std::string>& headers,
-        const std::string& query_param, void *request_data)
+        const std::string& query_param)
     {
-        makeRequest(cb, METHOD_GET, url, headers, query_param, "", request_data);
+        makeRequest(cb, METHOD_GET, url, headers, query_param, "");
     }
 
     //see above
     void makePut(HttpClientCallback cb, const std::string& url,
         const std::map<std::string, std::string>& headers,
         const std::string& query_param,
-        const std::string& body, void *request_data)
+        const std::string& body)
     {
-        makeRequest(cb, METHOD_PUT, url, headers, query_param, body, request_data);
+        makeRequest(cb, METHOD_PUT, url, headers, query_param, body);
     }
 
     //see above
     void makeDelete(HttpClientCallback cb, const std::string& url,
         const std::map<std::string, std::string>& headers,
         const std::string& query_param,
-        const std::string& body, void *request_data)
+        const std::string& body)
     {
-        makeRequest(cb, METHOD_DELETE, url, headers, query_param, body, request_data);
+        makeRequest(cb, METHOD_DELETE, url, headers, query_param, body);
     }
 
 
@@ -458,10 +456,9 @@ private:
         const HTTP_METHOD m, const std::string& url,
         const std::map<std::string, std::string>& headers,
         const std::string& query_param,
-        const std::string& body, void *request_data)
+        const std::string& body)
     {
         m_cb = cb;
-        m_request_data = request_data;
         m_method = m;
         m_urlparser.Parse(url);
 
@@ -927,7 +924,7 @@ private:
             m_cb_called = true;
             try
             {
-                m_cb(m_response, m_client_data, m_request_data);
+                m_cb(m_response);
             }
             catch (...)
             {
@@ -945,9 +942,7 @@ private:
 private:
     boost::asio::io_service& m_io_service;
     const unsigned short m_timeout;
-    void *m_client_data;
     HttpClientCallback m_cb;
-    void *m_request_data;
     boost::asio::deadline_timer m_deadline_timer;
     bool m_cb_called;
     bool m_throw_in_cb;

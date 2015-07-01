@@ -5,7 +5,7 @@
 boost::asio::io_service g_io_service;
 
 
-void r_cb(boost::shared_ptr<CAsyncHttpClient> pClient, const ResponseInfo& r, void *client_data, void *request_data)
+void r_cb(boost::shared_ptr<CAsyncHttpClient> pClient, const ResponseInfo& r)
 {
     if (r.timeout)
     {
@@ -26,18 +26,15 @@ void r_cb(boost::shared_ptr<CAsyncHttpClient> pClient, const ResponseInfo& r, vo
 }
 
 
-void *MY_NULL_PTR = NULL;
-
-
 void f()
 {
     std::map<std::string, std::string> headers;
     std::string body;
     while (1)
     {
-        boost::shared_ptr<CAsyncHttpClient> pClient = boost::make_shared<CAsyncHttpClient>(boost::ref(g_io_service), 5, MY_NULL_PTR);
-        //pClient->makeGet(boost::bind(r_cb, pClient, _1, _2, _3), "www.baidu.com", headers, "", NULL);
-        pClient->makePost(boost::bind(r_cb, pClient, _1, _2, _3), "http://www.baidu.com/123", headers, "", body, NULL);
+        boost::shared_ptr<CAsyncHttpClient> pClient = boost::make_shared<CAsyncHttpClient>(boost::ref(g_io_service), 5);
+        //pClient->makeGet(boost::bind(r_cb, pClient, _1), "www.baidu.com", headers, "");
+        pClient->makePost(boost::bind(r_cb, pClient, _1), "http://www.baidu.com/123", headers, "", body);
         boost::this_thread::sleep(boost::posix_time::seconds(1));
     }
 }
