@@ -21,7 +21,8 @@ void r_cb(boost::shared_ptr<CAsyncHttpClient> pClient, const ResponseInfo& r)
     }
     else
     {
-        std::cout << "response:\r\n" << r.content.c_str() << std::endl;
+        std::cout << "response size=" << r.content.size()
+            << ", content:\r\n" << r.content.c_str() << std::endl;
     }
 }
 

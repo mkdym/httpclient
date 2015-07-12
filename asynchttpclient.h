@@ -116,20 +116,18 @@ struct ResponseInfo
 //parse url
 struct UrlParser
 {
-    //service name, always before "://" in url, http(default) or https,...
-    std::string service;
     //host name. contains port number if has
     std::string host_all;
     //path, defalut "/"
     std::string path;
-    //host name. does not contain port number. for dns using
+    //host name. does not contain port number. for getaddrinfo
     std::string host_part;
     //query param. usually after path in url, and separated by "?" with path
     std::string query_param;
     //port number. 0 if not specified
     unsigned short port;
-    //for getaddrinfo, if no port, use service name
-    std::string normalized_service;
+    //for getaddrinfo, if no port, use proto
+    std::string service;
 
 
     UrlParser()
@@ -140,27 +138,27 @@ struct UrlParser
 
     void Parse(const std::string& url)
     {
-        size_t service_pos = url.find("://");
-        if (std::string::npos != service_pos)
+        size_t proto_pos = url.find("://");
+        if (std::string::npos != proto_pos)
         {
-            service = url.substr(0, service_pos);
-            boost::algorithm::to_lower(service);
+            proto = url.substr(0, proto_pos);
+            boost::algorithm::to_lower(proto);
         }
-        if (service.empty())
+        if (proto.empty())
         {
-            service = "http";
+            proto = "http";
         }
 
-        service_pos = service_pos == std::string::npos ? 0 : service_pos + 3;
-        size_t host_pos = url.find_first_of("/?", service_pos);
+        proto_pos = (proto_pos == std::string::npos ? 0 : proto_pos + 3);
+        size_t host_pos = url.find_first_of("/?", proto_pos);
         if (std::string::npos == host_pos)
         {
-            host_all = url.substr(service_pos);
+            host_all = url.substr(proto_pos);
             path = "/";
         }
         else
         {
-            host_all = url.substr(service_pos, host_pos - service_pos);
+            host_all = url.substr(proto_pos, host_pos - proto_pos);
             path = url.substr(host_pos);
         }
 
@@ -191,24 +189,27 @@ struct UrlParser
             host_part = host_all;
         }
 
-        if (port)//if no port, use service name
+        if (port)//if no port, use proto
         {
-            normalized_service = boost::lexical_cast<std::string>(port);
+            service = boost::lexical_cast<std::string>(port);
         }
         else
         {
-            normalized_service = service;
+            service = proto;
         }
 
         HTTP_CLIENT_INFO << "url[" << url << "] parse result:\r\n"
-            << "service=" << service
             << ", host_all=" << host_all
             << ", path=" << path
             << ", host_part=" << host_part
             << ", query_param=" << query_param
             << ", port=" << port
-            << ", normalized_service=" << normalized_service;
+            << ", service=" << service;
     }
+
+private:
+    //protocol, always before "://" in url, http(default) or https,...
+    std::string proto;
 };
 
 
@@ -473,9 +474,9 @@ private:
             query_param_all = m_urlparser.query_param + query_param;
         }
 
-        m_request_string = build_request_string(m_urlparser.service,
-            m_urlparser.host_all, m_urlparser.path, query_param_all,
-            m_method, headers, body);
+        m_request_string = build_request_string(m_urlparser.host_all,
+            m_urlparser.path, query_param_all, m_method,
+            headers, body);
         HTTP_CLIENT_INFO << "request_string:\r\n" << m_request_string;
 
         //start timeout
@@ -494,7 +495,7 @@ private:
             boost::asio::ip::tcp::resolver rs(m_io_service);
 
             std::string query_host(m_urlparser.host_part);
-            std::string query_serivce(m_urlparser.normalized_service);
+            std::string query_serivce(m_urlparser.service);
             boost::asio::ip::tcp::resolver::query q(query_host, query_serivce);
             boost::asio::ip::tcp::resolver::iterator ep_iter = rs.async_resolve(q, yield[ec]);
             if (ec)
@@ -698,7 +699,7 @@ private:
 
 
     //always HTTP/1.1
-    static std::string build_request_string(const std::string service_name, const std::string host,
+    static std::string build_request_string(const std::string host,
         const std::string& path, const std::string& query_param,
         const HTTP_METHOD m, const std::map<std::string, std::string>& headers,
         const std::string& body)
@@ -727,11 +728,7 @@ private:
             break;
         }
 
-        if (!service_name.empty())
-        {
-            ss << service_name << "://";
-        }
-        ss << host << path;
+        ss << path;
         if (!query_param.empty())
         {
             ss << "?" << query_param;
@@ -748,7 +745,7 @@ private:
         {
             ss << "Host: " << host << "\r\n";
         }
-        if (0 == headers.count("Content-Length"))
+        if (0 == headers.count("Content-Length") && !body.empty())
         {
             ss << "Content-Length: " << body.size() << "\r\n";
         }
