@@ -20,7 +20,13 @@
 #define HTTP_CLIENT_WARN     HTTP_CLIENT_LOG(2)
 #define HTTP_CLIENT_ERROR    HTTP_CLIENT_LOG(3)
 
+
+#if defined(HAS_HTTP_CLIENT_LOG)
 #define HTTP_CLIENT_LOG(_level) CAsyncHttpClientLog<_level>(__FILE__, __LINE__).stream()
+#else
+#define HTTP_CLIENT_LOG(_level) std::ostringstream()
+#endif
+
 
 //for simple log, I use int directly other than enum
 template<int _level>
@@ -61,10 +67,21 @@ public:
             break;
         }
 
-#if defined(HAS_HTTP_CLIENT_LOG)
-        std::cout << level.c_str() << "[" << m_file_name.c_str() << ":" << m_line << "] " << m_oss.str().c_str() << std::endl;
-#endif
+        time_t rawtime = time(NULL);
+        tm *timeinfo = localtime(&rawtime);
+        if (timeinfo)
+        {
+            const int time_buffer_size = 100;
+            char time_buffer[time_buffer_size] = {0};
+            strftime(time_buffer, time_buffer_size, "%Y-%m-%d-%H:%M:%S ", timeinfo);
+            std::cout << time_buffer;
+        }
+        else
+        {
+            std::cout << "unknown time??? ";
+        }
 
+        std::cout << level.c_str() << "[" << m_file_name.c_str() << ":" << m_line << "] " << m_oss.str().c_str() << std::endl;
     }
 
     std::ostringstream& stream()
