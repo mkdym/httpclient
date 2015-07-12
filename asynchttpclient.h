@@ -12,7 +12,6 @@
 
 
 
-
 //log for debug
 //if need, define macro HAS_HTTP_CLIENT_LOG
 
@@ -100,6 +99,9 @@ private:
 //response info struct
 //you should check timeout firstly in your cb
 //then check error_msg, if it's empty, no error happened
+//notice: because I use stringstream to build response string,
+//so content maybe contain null character, your printing of content will be incomplete.
+//if you will modify the code, be caution of this point.
 struct ResponseInfo
 {
     //true if timeout
@@ -569,7 +571,7 @@ private:
                 content_when_header = headers_contained.substr(headers_pos + 4);
 
                 feed_response(headers_exactly, "");
-                HTTP_CLIENT_INFO << "response headers:\r\n" << m_response.raw_response.c_str();
+                HTTP_CLIENT_INFO << "response headers:\r\n" << m_response.raw_response;
                 if (!parse_response_headers(m_response.raw_response, m_response))
                 {
                     m_response.error_msg = "can not parse response header, invalid header, header:\r\n"
