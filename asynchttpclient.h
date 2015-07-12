@@ -14,17 +14,11 @@
 
 //log for debug
 //if need, define macro HAS_HTTP_CLIENT_LOG
-
 #define HTTP_CLIENT_INFO     HTTP_CLIENT_LOG(1)
 #define HTTP_CLIENT_WARN     HTTP_CLIENT_LOG(2)
 #define HTTP_CLIENT_ERROR    HTTP_CLIENT_LOG(3)
 
-
-#if defined(HAS_HTTP_CLIENT_LOG)
 #define HTTP_CLIENT_LOG(_level) CAsyncHttpClientLog<_level>(__FILE__, __LINE__).stream()
-#else
-#define HTTP_CLIENT_LOG(_level) std::ostringstream()
-#endif
 
 
 //for simple log, I use int directly other than enum
@@ -46,6 +40,7 @@ public:
 
     ~CAsyncHttpClientLog()
     {
+#if defined(HAS_HTTP_CLIENT_LOG)
         std::string level;
         switch (_level)
         {
@@ -81,6 +76,7 @@ public:
         }
 
         std::cout << level.c_str() << "[" << m_file_name.c_str() << ":" << m_line << "] " << m_oss.str().c_str() << std::endl;
+#endif
     }
 
     std::ostringstream& stream()
@@ -218,7 +214,7 @@ struct UrlParser
         }
 
         HTTP_CLIENT_INFO << "url[" << url << "] parse result:\r\n"
-            << ", host_all=" << host_all
+            << "host_all=" << host_all
             << ", path=" << path
             << ", host_part=" << host_part
             << ", query_param=" << query_param
