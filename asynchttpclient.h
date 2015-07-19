@@ -270,6 +270,7 @@ public:
         , m_cb_called(false)
         , m_throw_in_cb(throw_in_cb)
         , m_method(METHOD_UNKNOWN)
+        , m_timeout_cb_called(false)
         , m_sock(m_io_service)
     {
     }
@@ -495,9 +496,12 @@ private:
         HTTP_CLIENT_INFO << "request_string:\r\n" << m_request_string;
 
         //start timeout
+        m_timeout_cb_called = false;
         m_deadline_timer.expires_from_now(boost::posix_time::seconds(m_timeout));
         m_deadline_timer.async_wait(boost::bind(&CAsyncHttpClient::timeout_cb, this,
             boost::asio::placeholders::error));
+
+        m_cb_called = false;
         boost::asio::spawn(m_io_service, boost::bind(&CAsyncHttpClient::yield_func, this, _1));
     }
 
@@ -681,7 +685,10 @@ private:
 
         } while (false);
 
-        DoCallback();
+        {
+            boost::lock_guard<boost::mutex> cb_lock(m_cb_mutex);
+            DoCallback();
+        }
     }
 
 
@@ -902,6 +909,8 @@ private:
 
     void timeout_cb(const boost::system::error_code &ec)
     {
+        boost::lock_guard<boost::mutex> cb_lock(m_cb_mutex);
+        m_timeout_cb_called = true;
         if (ec)
         {
             if (ec != boost::asio::error::operation_aborted)
@@ -930,10 +939,14 @@ private:
     {
         if (!m_cb_called)
         {
-            boost::system::error_code ec_cancel;
-            m_deadline_timer.cancel(ec_cancel);
-
             m_cb_called = true;
+
+            if (!m_timeout_cb_called)
+            {
+                boost::system::error_code ec_cancel;
+                m_deadline_timer.cancel(ec_cancel);
+            }
+
             try
             {
                 m_cb(m_response);
@@ -960,6 +973,8 @@ private:
     bool m_throw_in_cb;
     HTTP_METHOD m_method;
     UrlParser m_urlparser;
+    bool m_timeout_cb_called;
+    boost::mutex m_cb_mutex;
 
     boost::asio::ip::tcp::socket m_sock;
     std::string m_request_string;

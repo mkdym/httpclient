@@ -5,7 +5,7 @@
 boost::asio::io_service g_io_service;
 
 
-void r_cb(boost::shared_ptr<CAsyncHttpClient> pClient, const ResponseInfo& r)
+void r_cb(boost::shared_ptr<CAsyncHttpClient>& pClient, const ResponseInfo& r)
 {
     if (r.timeout)
     {
@@ -34,7 +34,7 @@ void f()
     while (1)
     {
         boost::shared_ptr<CAsyncHttpClient> pClient = boost::make_shared<CAsyncHttpClient>(boost::ref(g_io_service), 5);
-        //pClient->makeGet(boost::bind(r_cb, pClient, _1), "www.baidu.com", headers, "");
+        //pClient->makeGet(boost::bind(r_cb, pClient, _1), "www.google.com", headers, "");
         pClient->makePost(boost::bind(r_cb, pClient, _1), "http://www.baidu.com/123", headers, "", body);
         boost::this_thread::sleep(boost::posix_time::seconds(1));
     }
