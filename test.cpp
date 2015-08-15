@@ -32,7 +32,7 @@ void f()
 {
     while (1)
     {
-        HttpRequest req;
+        RequestInfo req;
         req.set_url("http://www.baidu.com/123");
         req.set_method(METHOD_GET);
         boost::shared_ptr<CAsyncHttpClient> pClient = boost::make_shared<CAsyncHttpClient>(boost::ref(g_io_service), 5);

@@ -20,12 +20,12 @@ enum HTTP_METHOD
 
 
 class CAsyncHttpClient;
-class HttpRequest
+class RequestInfo
 {
     friend class CAsyncHttpClient;
 
 public:
-    HttpRequest()
+    RequestInfo()
         : m_method(METHOD_GET)
         , m_http_ver("HTTP/1.1")
     {

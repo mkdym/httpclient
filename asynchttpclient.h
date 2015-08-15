@@ -13,7 +13,7 @@
 
 #include "httpclientlog.h"
 #include "responseinfo.h"
-#include "httprequest.h"
+#include "requestinfo.h"
 #include "httputil.h"
 #include "scopedcounter.h"
 
@@ -71,7 +71,7 @@ public:
     }
 
 
-    void make_request(HttpClientCallback cb, const HttpRequest& req)
+    void make_request(HttpClientCallback cb, const RequestInfo& req)
     {
         m_cb = cb;
         m_method = req.m_method;
