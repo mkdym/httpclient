@@ -13,7 +13,6 @@
 
 #include "httpclientlog.h"
 #include "responseinfo.h"
-#include "urlparser.h"
 #include "httprequest.h"
 #include "httputil.h"
 #include "scopedcounter.h"
@@ -23,17 +22,6 @@
 //callback function signature
 typedef boost::function<void(const ResponseInfo& r)> HttpClientCallback;
 
-
-
-enum HTTP_METHOD
-{
-    METHOD_UNKNOWN,
-    METHOD_POST,
-    METHOD_GET,
-    METHOD_PUT,
-    METHOD_DELETE,
-    METHOD_HEAD,
-};
 
 
 //key point: async http client class
@@ -83,66 +71,13 @@ public:
     }
 
 
-    //************************************
-    // brief:    make request
-    // name:     CAsyncHttpClient::makePost
-    // param:    HttpClientCallback cb                                  callback function
-    // param:    const std::string & url                                request url
-    // param:    const std::map<std::string, std::string> & headers     headers info of key-value style
-    // param:    const std::string & query_param                        query param. usually appended to url after "?"
-    // param:    std::string & body                                     post data
-    // return:   void
-    // ps:       no return value, if error, it will throw
-    //************************************
-    void makePost(HttpClientCallback cb, const HttpRequest& req)
-    {
-        makeRequest(cb, METHOD_POST, req);
-    }
-
-    //see above
-    void makeGet(HttpClientCallback cb, const HttpRequest& req)
-    {
-        makeRequest(cb, METHOD_GET, req);
-    }
-
-    //see above
-    void makePut(HttpClientCallback cb, const HttpRequest& req)
-    {
-        makeRequest(cb, METHOD_PUT, req);
-    }
-
-    //see above
-    void makeDelete(HttpClientCallback cb, const HttpRequest& req)
-    {
-        makeRequest(cb, METHOD_DELETE, req);
-    }
-
-
-private:
-    void makeRequest(HttpClientCallback cb, const HTTP_METHOD m, const HttpRequest& req)
+    void make_request(HttpClientCallback cb, const HttpRequest& req)
     {
         m_cb = cb;
-        m_method = m;
-
-        UrlParser urlparser;
-        urlparser.Parse(req.m_url);
-        m_host = urlparser.host_part;
-        m_service = urlparser.service;
-
-        //construct complete query_param
-        std::string query_param_all;
-        if (!urlparser.query_param.empty() && !req.m_query_param.empty())
-        {
-            query_param_all = urlparser.query_param + "&" + req.m_query_param;
-        }
-        else
-        {
-            query_param_all = urlparser.query_param + req.m_query_param;
-        }
-
-        m_request_string = build_request_string(urlparser.host_all,
-            urlparser.path, query_param_all, m_method,
-            req.m_headers, req.m_body);
+        m_method = req.m_method;
+        m_hostname = req.gethostname();
+        m_servicename = req.getservicename();
+        m_request_string = req.build_as_string();
         HTTP_CLIENT_INFO << "request_string:\r\n" << m_request_string;
 
         //start timeout
@@ -152,6 +87,8 @@ private:
         boost::asio::spawn(m_io_service, boost::bind(&CAsyncHttpClient::yield_func, this, _1));
     }
 
+
+private:
     void yield_func(boost::asio::yield_context yield)
     {
         scoped_counter_cond<int, boost::mutex, boost::condition> counter_cond(m_counter_busy, m_mutex_busy, m_cond_busy);
@@ -163,8 +100,8 @@ private:
 
             boost::asio::ip::tcp::resolver rs(m_io_service);
 
-            std::string query_host(m_host);
-            std::string query_serivce(m_service);
+            std::string query_host(m_hostname);
+            std::string query_serivce(m_servicename);
             boost::asio::ip::tcp::resolver::query q(query_host, query_serivce);
             boost::asio::ip::tcp::resolver::iterator ep_iter = rs.async_resolve(q, yield[ec]);
             if (ec)
@@ -349,69 +286,6 @@ private:
     }
 
 
-    //always HTTP/1.1
-    static std::string build_request_string(const std::string host,
-        const std::string& path, const std::string& query_param,
-        const HTTP_METHOD m, const std::map<std::string, std::string>& headers,
-        const std::string& body)
-    {
-        std::stringstream ss;
-
-        switch (m)
-        {
-        case METHOD_POST:
-            ss << "POST ";
-            break;
-
-        case METHOD_GET:
-            ss << "GET ";
-            break;
-
-        case METHOD_PUT:
-            ss << "PUT ";
-            break;
-
-        case METHOD_DELETE:
-            ss << "DELETE ";
-            break;
-
-        case METHOD_HEAD:
-            ss << "HEAD ";
-            break;
-
-        default:
-            break;
-        }
-
-        ss << path;
-        if (!query_param.empty())
-        {
-            ss << "?" << query_param;
-        }
-        ss << " HTTP/1.1" << "\r\n";
-
-        for (std::map<std::string, std::string>::const_iterator iterKey = headers.begin();
-            iterKey != headers.end();
-            ++iterKey)
-        {
-            ss << iterKey->first << ": " << iterKey->second << "\r\n";
-        }
-        if (0 == headers.count("Host"))
-        {
-            ss << "Host: " << host << "\r\n";
-        }
-        if (0 == headers.count("Content-Length") && !body.empty())
-        {
-            ss << "Content-Length: " << body.size() << "\r\n";
-        }
-
-        ss << "\r\n";
-        ss << body;
-
-        return ss.str();
-    }
-
-
     static bool parse_response_headers(const std::string& s, ResponseInfo& r)
     {
         bool bReturn = false;
@@ -573,12 +447,10 @@ private:
     boost::mutex m_mutex_busy;
     int m_counter_busy;
 
-    HTTP_METHOD m_method;
     HttpClientCallback m_cb;
-
-    std::string m_host;
-    std::string m_service;
-
+    HTTP_METHOD m_method;
+    std::string m_hostname;
+    std::string m_servicename;
     std::string m_request_string;
 
     ResponseInfo m_response;

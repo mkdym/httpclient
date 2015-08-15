@@ -31,7 +31,7 @@ struct UrlParser
     }
 
 
-    void Parse(const std::string& url)
+    void parse(const std::string& url)
     {
         size_t proto_pos = url.find("://");
         if (std::string::npos != proto_pos)
