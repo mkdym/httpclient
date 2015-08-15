@@ -1,8 +1,7 @@
 ﻿#pragma once
-#include <iostream>
-#include <sstream>
 #include <string>
 #include <map>
+#include <sstream>
 #include <boost/asio.hpp>
 #include <boost/bind.hpp>
 #include <boost/function.hpp>
@@ -10,222 +9,10 @@
 #include <boost/algorithm/string.hpp>
 #include <boost/lexical_cast.hpp>
 
-
-
-//log for debug
-//if need, define macro HAS_HTTP_CLIENT_LOG
-#define HTTP_CLIENT_INFO     HTTP_CLIENT_LOG(1)
-#define HTTP_CLIENT_WARN     HTTP_CLIENT_LOG(2)
-#define HTTP_CLIENT_ERROR    HTTP_CLIENT_LOG(3)
-
-#define HTTP_CLIENT_LOG(_level) CAsyncHttpClientLog<_level>(__FILE__, __LINE__).stream()
-
-
-//for simple log, I use int directly other than enum
-template<int _level>
-class CAsyncHttpClientLog
-{
-public:
-    CAsyncHttpClientLog(const char* file, const int line)
-        : m_file_name(file)
-        , m_line(line)
-    {
-        size_t pos = m_file_name.find_last_of("/\\");
-        if (std::string::npos != pos)
-        {
-            m_file_name = m_file_name.substr(pos);
-            boost::algorithm::trim_if(m_file_name, boost::algorithm::is_any_of("/\\"));
-        }
-    }
-
-    ~CAsyncHttpClientLog()
-    {
-#if defined(HAS_HTTP_CLIENT_LOG)
-        std::string level;
-        switch (_level)
-        {
-        case 1:
-            level = "INFO  ";
-            break;
-
-        case 2:
-            level = "WARN  ";
-            break;
-
-        case 3:
-            level = "ERROR ";
-            break;
-
-        default:
-            level = "ERROR ";
-            break;
-        }
-
-        time_t rawtime = time(NULL);
-        tm *timeinfo = localtime(&rawtime);
-        if (timeinfo)
-        {
-            const int time_buffer_size = 100;
-            char time_buffer[time_buffer_size] = {0};
-            strftime(time_buffer, time_buffer_size, "%Y-%m-%d-%H:%M:%S ", timeinfo);
-            std::cout << time_buffer;
-        }
-        else
-        {
-            std::cout << "unknown time??? ";
-        }
-
-        std::cout << level.c_str() << "[" << m_file_name.c_str() << ":" << m_line << "] " << m_oss.str().c_str() << std::endl;
-#endif
-    }
-
-    std::ostringstream& stream()
-    {
-        return m_oss;
-    }
-
-private:
-    std::ostringstream m_oss;
-    std::string m_file_name;
-    int m_line;
-};
-
-
-
-//response info struct
-//you should check timeout firstly in your cb
-//then check error_msg, if it's empty, no error happened
-//notice: because I use stringstream to build response string,
-//so content maybe contain null character, your printing of content will be incomplete.
-//if you will modify the code, be caution of this point.
-struct ResponseInfo
-{
-    //true if timeout
-    bool timeout;
-    //not empty when error happened
-    std::string error_msg;
-    //raw response: headers, (chunked)content
-    std::string raw_response;
-
-    //http version string
-    std::string http_version;
-    //status code. when -1, it means something wrong with response's stream, maybe can not parse headers
-    int status_code;
-    //status code message
-    std::string status_msg;
-
-    //headers in key-value style. all keys are lowered
-    std::map<std::string, std::string> headers;
-    //content
-    std::string content;
-
-    ResponseInfo()
-        : timeout(false)
-        , status_code(-1)
-    {
-    }
-};
-
-
-//helper calss
-//parse url
-struct UrlParser
-{
-    //host name. contains port number if has
-    std::string host_all;
-    //path, defalut "/"
-    std::string path;
-    //host name. does not contain port number. for getaddrinfo
-    std::string host_part;
-    //query param. usually after path in url, and separated by "?" with path
-    std::string query_param;
-    //port number. 0 if not specified
-    unsigned short port;
-    //for getaddrinfo, if no port, use proto
-    std::string service;
-
-
-    UrlParser()
-        : port(0)
-    {
-    }
-
-
-    void Parse(const std::string& url)
-    {
-        size_t proto_pos = url.find("://");
-        if (std::string::npos != proto_pos)
-        {
-            proto = url.substr(0, proto_pos);
-            boost::algorithm::to_lower(proto);
-        }
-        if (proto.empty())
-        {
-            proto = "http";
-        }
-
-        proto_pos = (proto_pos == std::string::npos ? 0 : proto_pos + 3);
-        size_t host_pos = url.find_first_of("/?", proto_pos);
-        if (std::string::npos == host_pos)
-        {
-            host_all = url.substr(proto_pos);
-            path = "/";
-        }
-        else
-        {
-            host_all = url.substr(proto_pos, host_pos - proto_pos);
-            path = url.substr(host_pos);
-        }
-
-        size_t param_pos = path.find('?');
-        if (std::string::npos != param_pos)
-        {
-            query_param = path.substr(param_pos + 1);
-            path = path.substr(0, param_pos);
-        }
-        if (path.empty())
-        {
-            path = "/";
-        }
-
-        size_t port_pos = host_all.find(':');
-        if (std::string::npos != port_pos)
-        {
-            host_part = host_all.substr(0, port_pos);
-            std::string port_str = host_all.substr(port_pos + 1);
-            port = static_cast<unsigned short>(strtoul(port_str.c_str(), NULL, 10));
-            if (0 == port)
-            {
-                HTTP_CLIENT_ERROR << "port str[" << port_str << "] can not be converted to number, set port number 0";
-            }
-        }
-        else
-        {
-            host_part = host_all;
-        }
-
-        if (port)//if no port, use proto
-        {
-            service = boost::lexical_cast<std::string>(port);
-        }
-        else
-        {
-            service = proto;
-        }
-
-        HTTP_CLIENT_INFO << "url[" << url << "] parse result:\r\n"
-            << "host_all=" << host_all
-            << ", path=" << path
-            << ", host_part=" << host_part
-            << ", query_param=" << query_param
-            << ", port=" << port
-            << ", service=" << service;
-    }
-
-private:
-    //protocol, always before "://" in url, http(default) or https,...
-    std::string proto;
-};
+#include "httpclientlog.h"
+#include "responseinfo.h"
+#include "urlparser.h"
+#include "httputil.h"
 
 
 
@@ -261,12 +48,12 @@ public:
     // return:   
     // ps:      
     //************************************
-    CAsyncHttpClient(boost::asio::io_service& io_service,
+    CAsyncHttpClient(boost::asio::io_service& io_serv,
         const unsigned short timeout,
         const bool throw_in_cb = false)
-        : m_io_service(io_service)
+        : m_io_service(io_serv)
         , m_timeout(timeout)
-        , m_deadline_timer(io_service)
+        , m_deadline_timer(io_serv)
         , m_cb_called(false)
         , m_throw_in_cb(throw_in_cb)
         , m_method(METHOD_UNKNOWN)
@@ -334,137 +121,6 @@ public:
         const std::string& body)
     {
         makeRequest(cb, METHOD_DELETE, url, headers, query_param, body);
-    }
-
-
-    //************************************
-    // brief:    static tool function, transform key-value style param to string style param with given separator
-    // name:     CAsyncHttpClient::build_kv_string
-    // param:    const std::map<std::string, std::string> & kv_param
-    // param:    const std::string & kv_sep                             separator between key and value
-    // param:    const std::string & pair_sep                           separator between key-value pairs
-    // return:   std::string
-    // ps:       
-    //************************************
-    static std::string build_kv_string(const std::map<std::string, std::string>& kv_param,
-        const std::string& kv_sep = "=", const std::string& pair_sep = "&")
-    {
-        std::string s;
-        for (std::map<std::string, std::string>::const_iterator iterKey = kv_param.begin();
-            iterKey != kv_param.end();
-            ++iterKey)
-        {
-            s += iterKey->first + kv_sep + iterKey->second + pair_sep;
-        }
-        boost::algorithm::erase_last(s, "&");
-        return s;
-    }
-
-    //************************************
-    // brief:    static tool function, transform string style param to key-value style param using given separator, see above
-    // name:     CAsyncHttpClient::parse_kv_string
-    // param:    const std::string & s
-    // param:    std::map<std::string, std::string> & kv_param
-    // param:    const std::string & kv_sep
-    // param:    const std::string & pair_sep
-    // return:   void
-    // ps:       
-    //************************************
-    static void parse_kv_string(const std::string& s, std::map<std::string, std::string>& kv_param,
-        const std::string& kv_sep = "=", const std::string& pair_sep = "&")
-    {
-        kv_param.clear();
-
-        std::vector<std::string> pairs;
-        boost::algorithm::split(pairs, s, boost::algorithm::is_any_of(pair_sep));
-        for (std::vector<std::string>::iterator iterStr = pairs.begin();
-            iterStr != pairs.end();
-            ++iterStr)
-        {
-            if (iterStr->empty())
-            {
-                HTTP_CLIENT_WARN << "encountered an empty pair";
-                continue;
-            }
-            std::vector<std::string> kv;
-            boost::algorithm::split(kv, *iterStr, boost::algorithm::is_any_of(kv_sep));
-            if (2 != kv.size())
-            {
-                HTTP_CLIENT_WARN << "encountered a pair[" << *iterStr << "] which can not split 2 parts by [" << kv_sep << "]";
-                continue;
-            }
-            kv_param[kv[0]] = kv[1];
-        }
-    }
-
-
-    //************************************
-    // brief:    static tool function, url encode/decode
-    // name:     CAsyncHttpClient::url_encode
-    // param:    const std::string & s
-    // return:   std::string
-    // ps:       
-    //************************************
-    static std::string url_encode(const std::string& s)
-    {
-        std::string strEncoded;
-        for (std::string::const_iterator iterCh = s.begin(); iterCh != s.end(); ++iterCh)
-        {
-            const unsigned char ch = *iterCh;
-            if (isalnum(ch) || (ch == '-') || (ch == '_') || (ch == '.') || (ch == '~'))
-            {
-                strEncoded += ch;
-            }
-            else if (ch == ' ')
-            {
-                strEncoded += '+';
-            }
-            else
-            {
-                strEncoded += '%';
-                strEncoded += tohex(ch >> 4);//高4位
-                strEncoded += tohex(ch % 16);//低4位
-            }
-        }
-        return strEncoded;
-    }
-
-    //see above
-    static std::string url_decode(const std::string& s)
-    {
-        std::string strDecoded;
-        for (std::string::const_iterator iterCh = s.begin(); iterCh != s.end();)
-        {
-            if (*iterCh == '+')
-            {
-                strDecoded += ' ';
-                ++iterCh;
-            }
-            else if (*iterCh == '%')
-            {
-                if (++iterCh == s.end())
-                {
-                    break;
-                }
-                unsigned char high = fromhex(*iterCh);
-
-                if (++iterCh == s.end())
-                {
-                    break;
-                }
-                unsigned char low = fromhex(*iterCh);
-
-                strDecoded += (high * 16 + low);
-
-                ++iterCh;
-            }
-            else
-            {
-                strDecoded += *iterCh;
-                ++iterCh;
-            }
-        }
-        return strDecoded;
     }
 
 
@@ -689,34 +345,6 @@ private:
             boost::lock_guard<boost::mutex> cb_lock(m_cb_mutex);
             DoCallback();
         }
-    }
-
-
-    static unsigned char tohex(const unsigned char x)
-    {
-        return  (x > 9) ? (x - 10 + 'A') : (x + '0');
-    }
-
-    static unsigned char fromhex(const unsigned char x) 
-    { 
-        unsigned char y = 0;
-        if (x >= 'A' && x <= 'Z')
-        {
-            y = x - 'A' + 10;
-        }
-        else if (x >= 'a' && x <= 'z')
-        {
-            y = x - 'a' + 10;
-        }
-        else if (x >= '0' && x <= '9')
-        {
-            y = x - '0';
-        }
-        else
-        {
-            y = 0;
-        }
-        return y;
     }
 
 
