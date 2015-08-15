@@ -7,7 +7,7 @@
 boost::asio::io_service g_io_service;
 
 
-void r_cb(boost::shared_ptr<CAsyncHttpClient>& pClient, const ResponseInfo& r)
+void handle_response(const ResponseInfo& r)
 {
     if (r.timeout)
     {
@@ -26,6 +26,12 @@ void r_cb(boost::shared_ptr<CAsyncHttpClient>& pClient, const ResponseInfo& r)
         std::cout << "response size=" << r.content.size()
             << ", content:\r\n" << r.content.c_str() << std::endl;
     }
+}
+
+
+void r_cb(boost::shared_ptr<CAsyncHttpClient>& pClient, const ResponseInfo& r)
+{
+    handle_response(r);
 }
 
 
@@ -49,7 +55,7 @@ void test_sync()
     req.set_url("http://www.baidu.com/123");
     req.set_method(METHOD_GET);
     CSyncHttpClient client(5);
-    const ResponseInfo& r = client.make_request(req);
+    handle_response(client.make_request(req));
 }
 
 void test_async()
