@@ -23,12 +23,12 @@ public:
     }
 
 public:
-    void set_headers_callback(HttpClientConstCallback cb)
+    void set_headers_callback(HttpClientCallback cb)
     {
         m_async_client.set_headers_callback(cb);
     }
 
-    void set_content_callback(HttpClientNConstCallback cb)
+    void set_content_callback(ContentCallback cb)
     {
         m_async_client.set_content_callback(cb);
     }

@@ -19,8 +19,9 @@
 
 
 //http client callback function
-typedef boost::function<void(const ResponseInfo& r)> HttpClientConstCallback;
-typedef boost::function<void(ResponseInfo& r)> HttpClientNConstCallback;
+typedef boost::function<void(const ResponseInfo& r)> HttpClientCallback;
+//content callback function. non-const-reference, you can modify the content
+typedef boost::function<void(std::string& cur_content)> ContentCallback;
 
 
 
@@ -74,20 +75,20 @@ public:
     }
 
 
-    void set_headers_callback(HttpClientConstCallback cb)
+    void set_headers_callback(HttpClientCallback cb)
     {
         m_headers_cb = cb;
         m_has_headers_cb = true;
     }
 
-    void set_content_callback(HttpClientNConstCallback cb)
+    void set_content_callback(ContentCallback cb)
     {
         m_content_cb = cb;
         m_has_content_cb = true;
     }
 
 
-    void make_request(HttpClientConstCallback cb, const RequestInfo& req)
+    void make_request(HttpClientCallback cb, const RequestInfo& req)
     {
         m_response_cb = cb;
         m_method = req.m_method;
@@ -196,6 +197,8 @@ private:
             ps: do not consider "multipart/byteranges"
             */
 
+            //do not use m_response.content.size() to calculate remaining data length for reading,
+            //because it can be modified by user
             if ((0 == (m_response.status_code / 200) && 1 == (m_response.status_code / 100))
                 || 204 == m_response.status_code
                 || 304 == m_response.status_code
@@ -453,7 +456,7 @@ private:
         {
             try
             {
-                m_content_cb(m_response);
+                m_content_cb(m_response.content);
             }
             catch (...)
             {
@@ -510,16 +513,16 @@ private:
     boost::mutex m_mutex_busy;
     int m_counter_busy;
 
-    HttpClientConstCallback m_response_cb;
+    HttpClientCallback m_response_cb;
     HTTP_METHOD m_method;
     std::string m_hostname;
     std::string m_servicename;
     std::string m_request_string;
 
     bool m_has_headers_cb;
-    HttpClientConstCallback m_headers_cb;
+    HttpClientCallback m_headers_cb;
     bool m_has_content_cb;
-    HttpClientNConstCallback m_content_cb;
+    ContentCallback m_content_cb;
 
     ResponseInfo m_response;
 };
