@@ -8,6 +8,7 @@
 #include <boost/asio/spawn.hpp>
 #include <boost/algorithm/string.hpp>
 #include <boost/lexical_cast.hpp>
+#include <boost/atomic.hpp>
 
 #include "httpclientlog.h"
 #include "responseinfo.h"
@@ -57,7 +58,6 @@ public:
         , m_cb_called(false)
         , m_throw_in_cb(throw_in_cb)
         , m_method(METHOD_UNKNOWN)
-        , m_timeout_cb_called(false)
         , m_sock(m_io_service)
     {
     }
@@ -70,11 +70,9 @@ public:
     //************************************
     ~CAsyncHttpClient()
     {
-        if (m_response.error_msg.empty())
-        {
-            m_response.error_msg = "abandoned";
-        }
-        DoCallback();
+        boost::system::error_code ec;
+        m_deadline_timer.cancel(ec);
+        m_sock.close(ec);
     }
 
 
@@ -152,17 +150,15 @@ private:
         HTTP_CLIENT_INFO << "request_string:\r\n" << m_request_string;
 
         //start timeout
-        m_timeout_cb_called = false;
         m_deadline_timer.expires_from_now(boost::posix_time::seconds(m_timeout));
         m_deadline_timer.async_wait(boost::bind(&CAsyncHttpClient::timeout_cb, this,
             boost::asio::placeholders::error));
-
-        m_cb_called = false;
         boost::asio::spawn(m_io_service, boost::bind(&CAsyncHttpClient::yield_func, this, _1));
     }
 
     void yield_func(boost::asio::yield_context yield)
     {
+        std::string error_msg;
         do 
         {
             boost::system::error_code ec;
@@ -175,28 +171,28 @@ private:
             boost::asio::ip::tcp::resolver::iterator ep_iter = rs.async_resolve(q, yield[ec]);
             if (ec)
             {
-                m_response.error_msg = "can not resolve addr which has host=";
-                m_response.error_msg += query_host + " and service="
+                error_msg = "can not resolve addr which has host=";
+                error_msg += query_host + " and service="
                     + query_serivce + ", error:" + ec.message();
-                HTTP_CLIENT_ERROR << m_response.error_msg;
+                HTTP_CLIENT_ERROR << error_msg;
                 break;
             }
 
             boost::asio::async_connect(m_sock, ep_iter, yield[ec]);
             if (ec)
             {
-                m_response.error_msg = "can not connect to addr which has host=";
-                m_response.error_msg += query_host + " and service=" + query_serivce + ", error:" + ec.message();
-                HTTP_CLIENT_ERROR << m_response.error_msg;
+                error_msg = "can not connect to addr which has host=";
+                error_msg += query_host + " and service=" + query_serivce + ", error:" + ec.message();
+                HTTP_CLIENT_ERROR << error_msg;
                 break;
             }
 
             boost::asio::async_write(m_sock, boost::asio::buffer(m_request_string), yield[ec]);
             if (ec)
             {
-                m_response.error_msg = "can not send data to addr which has host=";
-                m_response.error_msg += query_host + " and service=" + query_serivce + ", error:" + ec.message();
-                HTTP_CLIENT_ERROR << m_response.error_msg;
+                error_msg = "can not send data to addr which has host=";
+                error_msg += query_host + " and service=" + query_serivce + ", error:" + ec.message();
+                HTTP_CLIENT_ERROR << error_msg;
                 break;
             }
 
@@ -213,8 +209,8 @@ private:
                 boost::asio::async_read_until(m_sock, response_buf, "\r\n\r\n", yield[ec]);
                 if (ec)
                 {
-                    m_response.error_msg = "can not recv response header, error:" + ec.message();
-                    HTTP_CLIENT_ERROR << m_response.error_msg;
+                    error_msg = "can not recv response header, error:" + ec.message();
+                    HTTP_CLIENT_ERROR << error_msg;
                     break;
                 }
 
@@ -229,9 +225,9 @@ private:
                 HTTP_CLIENT_INFO << "response headers:\r\n" << headers_exactly;
                 if (!parse_response_headers(headers_exactly, m_response))
                 {
-                    m_response.error_msg = "can not parse response header, invalid header:\r\n"
+                    error_msg = "can not parse response header, invalid header:\r\n"
                         + headers_exactly;
-                    HTTP_CLIENT_ERROR << m_response.error_msg;
+                    HTTP_CLIENT_ERROR << error_msg;
                     break;
                 }
             }
@@ -282,7 +278,7 @@ private:
                     {
                         if (ec != boost::asio::error::eof)
                         {
-                            m_response.error_msg = ec.message();
+                            error_msg = ec.message();
                         }
                         break;
                     }
@@ -313,7 +309,7 @@ private:
                         yield[ec]);
                     if (ec)
                     {
-                        m_response.error_msg = ec.message();
+                        error_msg = ec.message();
                         break;
                     }
 
@@ -337,7 +333,7 @@ private:
                     {
                         if (ec != boost::asio::error::eof)
                         {
-                            m_response.error_msg = ec.message();
+                            error_msg = ec.message();
                         }
                         break;
                     }
@@ -351,10 +347,7 @@ private:
 
         } while (false);
 
-        {
-            boost::lock_guard<boost::mutex> cb_lock(m_cb_mutex);
-            DoCallback();
-        }
+        DoCallback(error_msg);
     }
 
 
@@ -475,7 +468,7 @@ private:
     // return:   bool
     // ps:
     //************************************
-    static bool reach_chunk_end(std::string& all_chunk, std::string& content)
+    static bool reach_chunk_end(const std::string& all_chunk, std::string& content)
     {
         content.clear();
 
@@ -515,15 +508,13 @@ private:
 
     void timeout_cb(const boost::system::error_code &ec)
     {
-        boost::lock_guard<boost::mutex> cb_lock(m_cb_mutex);
-        m_timeout_cb_called = true;
         if (ec)
         {
             if (ec != boost::asio::error::operation_aborted)
             {
-                m_response.error_msg = "timeout callback encountered an error:" + ec.message();
-                HTTP_CLIENT_ERROR << m_response.error_msg;
-                DoCallback();
+                std::string error_msg = "timeout callback encountered an error:" + ec.message();
+                HTTP_CLIENT_ERROR << error_msg;
+                DoCallback(error_msg);
             }
             else
             {
@@ -534,24 +525,21 @@ private:
         {
             HTTP_CLIENT_ERROR << "timeout";
             m_response.timeout = true;
-            m_response.error_msg = "timeout";
-            boost::system::error_code ec_close;
-            m_sock.close(ec_close);
-            DoCallback();
+            DoCallback("");
         }
     }
 
-    void DoCallback()
+    void DoCallback(const std::string& error_msg)
     {
-        if (!m_cb_called)
+        //确保不会执行回调多次
+        bool called_expected = false;
+        if (m_cb_called.compare_exchange_strong(called_expected, true))
         {
-            m_cb_called = true;
-
-            if (!m_timeout_cb_called)
-            {
-                boost::system::error_code ec_cancel;
-                m_deadline_timer.cancel(ec_cancel);
-            }
+            assert(!called_expected);
+            boost::system::error_code ec;
+            m_deadline_timer.cancel(ec);
+            m_sock.close(ec);
+            m_response.error_msg = error_msg;
 
             try
             {
@@ -575,12 +563,10 @@ private:
     const unsigned short m_timeout;
     HttpClientCallback m_cb;
     boost::asio::deadline_timer m_deadline_timer;
-    bool m_cb_called;
-    bool m_throw_in_cb;
+    boost::atomic_bool m_cb_called;
+    const bool m_throw_in_cb;
     HTTP_METHOD m_method;
     UrlParser m_urlparser;
-    bool m_timeout_cb_called;
-    boost::mutex m_cb_mutex;
 
     boost::asio::ip::tcp::socket m_sock;
     std::string m_request_string;
