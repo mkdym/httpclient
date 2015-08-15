@@ -1,6 +1,5 @@
 ﻿#pragma once
 #include <string>
-#include <map>
 #include <sstream>
 #include <boost/asio.hpp>
 #include <boost/bind.hpp>
@@ -24,10 +23,9 @@ typedef boost::function<void(const ResponseInfo& r)> HttpClientCallback;
 
 
 
-//key point: async http client class
+//async http client class
 //class is designed to make one request in one instance's lifetime
-//you may or not get error when making request again
-//always HTTP/1.1
+//you may get error when making request again
 class CAsyncHttpClient
 {
 public:

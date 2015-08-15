@@ -1,6 +1,7 @@
 ﻿#pragma once
 #include <string>
 #include <map>
+#include <sstream>
 
 #include "urlparser.h"
 
