@@ -37,7 +37,6 @@ void f()
         req.set_url("http://www.baidu.com/123");
         req.set_method(METHOD_GET);
         boost::shared_ptr<CAsyncHttpClient> pClient = boost::make_shared<CAsyncHttpClient>(boost::ref(g_io_service), 5);
-        //pClient->makeGet(boost::bind(r_cb, pClient, _1), "www.google.com", headers, "");
         pClient->make_request(boost::bind(r_cb, pClient, _1), req);
         boost::this_thread::sleep(boost::posix_time::seconds(1));
     }
