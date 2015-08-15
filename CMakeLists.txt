@@ -1,0 +1,8 @@
+PROJECT(test)
+CMAKE_MINIMUM_REQUIRED(VERSION 2.6)
+INCLUDE_DIRECTORIES(/usr/local/include)
+LINK_DIRECTORIES(/usr/local/lib)
+ADD_DEFINITIONS("-Wall -g")
+AUX_SOURCE_DIRECTORY(. DIR_SRCS)
+ADD_EXECUTABLE(test ${DIR_SRCS})
+TARGET_LINK_LIBRARIES(test pthread rt boost_system boost_thread boost_coroutine boost_context boost_atomic)
