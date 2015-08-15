@@ -374,6 +374,10 @@ private:
             ss << "DELETE ";
             break;
 
+        case METHOD_HEAD:
+            ss << "HEAD ";
+            break;
+
         default:
             break;
         }
