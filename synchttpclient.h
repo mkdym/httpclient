@@ -23,6 +23,16 @@ public:
     }
 
 public:
+    void set_headers_callback(HttpClientConstCallback cb)
+    {
+        m_async_client.set_headers_callback(cb);
+    }
+
+    void set_content_callback(HttpClientNConstCallback cb)
+    {
+        m_async_client.set_content_callback(cb);
+    }
+
     const ResponseInfo& make_request(const RequestInfo& req)
     {
         if (!create_io_run_thread())

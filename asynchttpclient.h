@@ -18,8 +18,9 @@
 
 
 
-//callback function signature
-typedef boost::function<void(const ResponseInfo& r)> HttpClientCallback;
+//http client callback function
+typedef boost::function<void(const ResponseInfo& r)> HttpClientConstCallback;
+typedef boost::function<void(ResponseInfo& r)> HttpClientNConstCallback;
 
 
 
@@ -49,12 +50,16 @@ public:
         , m_cb_called(false)
         , m_counter_busy(0)
         , m_method(METHOD_UNKNOWN)
+        , m_has_headers_cb(false)
+        , m_has_content_cb(false)
     {
     }
 
     //wait for stop
     ~CAsyncHttpClient()
     {
+        m_has_headers_cb = m_has_content_cb = false;
+
         boost::system::error_code ec;
         m_deadline_timer.cancel(ec);
         m_sock.close(ec);
@@ -69,9 +74,22 @@ public:
     }
 
 
-    void make_request(HttpClientCallback cb, const RequestInfo& req)
+    void set_headers_callback(HttpClientConstCallback cb)
     {
-        m_cb = cb;
+        m_headers_cb = cb;
+        m_has_headers_cb = true;
+    }
+
+    void set_content_callback(HttpClientNConstCallback cb)
+    {
+        m_content_cb = cb;
+        m_has_content_cb = true;
+    }
+
+
+    void make_request(HttpClientConstCallback cb, const RequestInfo& req)
+    {
+        m_response_cb = cb;
         m_method = req.m_method;
         m_hostname = req.gethostname();
         m_servicename = req.getservicename();
@@ -163,6 +181,8 @@ private:
                     HTTP_CLIENT_ERROR << error_msg;
                     break;
                 }
+
+                do_headers_callback();
             }
 
             /*
@@ -197,6 +217,7 @@ private:
                     std::string content;
                     if (reach_chunk_end(all_chunk_content, m_response.content))
                     {
+                        do_content_callback();
                         break;
                     }
                 }
@@ -224,6 +245,7 @@ private:
                     std::string content;
                     if (reach_chunk_end(all_chunk_content, m_response.content))
                     {
+                        do_content_callback();
                         break;
                     }
                 }
@@ -233,6 +255,7 @@ private:
                 HTTP_CLIENT_INFO << "content with content-length";
 
                 m_response.content += content_when_header;
+                do_content_callback();
                 size_t content_length = boost::lexical_cast<size_t>(m_response.headers["content-length"]);
                 if (content_when_header.size() < content_length)
                 {
@@ -249,6 +272,7 @@ private:
                     std::stringstream cur_ss;
                     cur_ss << &response_buf;
                     m_response.content += cur_ss.str();
+                    do_content_callback();
                 }
             }
             else
@@ -256,6 +280,7 @@ private:
                 HTTP_CLIENT_INFO << "recv content till closed";
 
                 m_response.content += content_when_header;
+                do_content_callback();
                 while (true)
                 {
                     boost::asio::streambuf response_buf;
@@ -273,6 +298,7 @@ private:
                     std::stringstream cur_ss;
                     cur_ss << &response_buf;
                     m_response.content += cur_ss.str();
+                    do_content_callback();
                 }
             }
 
@@ -280,7 +306,7 @@ private:
 
         } while (false);
 
-        DoCallback(error_msg);
+        do_response_callback(error_msg);
     }
 
 
@@ -386,7 +412,7 @@ private:
             {
                 std::string error_msg = "timeout callback encountered an error:" + ec.message();
                 HTTP_CLIENT_ERROR << error_msg;
-                DoCallback(error_msg);
+                do_response_callback(error_msg);
             }
             else
             {
@@ -397,12 +423,51 @@ private:
         {
             HTTP_CLIENT_ERROR << "timeout";
             m_response.timeout = true;
-            DoCallback("");
+            do_response_callback("");
         }
     }
 
+    void do_headers_callback()
+    {
+        if (m_has_headers_cb)
+        {
+            try
+            {
+                m_headers_cb(m_response);
+            }
+            catch (...)
+            {
+                HTTP_CLIENT_ERROR << "exception happened in headers callback function";
+                if (m_throw_in_cb)
+                {
+                    HTTP_CLIENT_INFO << "throw";
+                    throw;
+                }
+            }
+        }
+    }
 
-    void DoCallback(const std::string& error_msg)
+    void do_content_callback()
+    {
+        if (m_has_content_cb)
+        {
+            try
+            {
+                m_content_cb(m_response);
+            }
+            catch (...)
+            {
+                HTTP_CLIENT_ERROR << "exception happened in content callback function";
+                if (m_throw_in_cb)
+                {
+                    HTTP_CLIENT_INFO << "throw";
+                    throw;
+                }
+            }
+        }
+    }
+
+    void do_response_callback(const std::string& error_msg)
     {
         //确保不会执行回调多次
         bool called_expected = false;
@@ -416,11 +481,11 @@ private:
 
             try
             {
-                m_cb(m_response);
+                m_response_cb(m_response);
             }
             catch (...)
             {
-                HTTP_CLIENT_ERROR << "exception happened in callback function";
+                HTTP_CLIENT_ERROR << "exception happened in response callback function";
                 if (m_throw_in_cb)
                 {
                     HTTP_CLIENT_INFO << "throw";
@@ -445,11 +510,16 @@ private:
     boost::mutex m_mutex_busy;
     int m_counter_busy;
 
-    HttpClientCallback m_cb;
+    HttpClientConstCallback m_response_cb;
     HTTP_METHOD m_method;
     std::string m_hostname;
     std::string m_servicename;
     std::string m_request_string;
+
+    bool m_has_headers_cb;
+    HttpClientConstCallback m_headers_cb;
+    bool m_has_content_cb;
+    HttpClientNConstCallback m_content_cb;
 
     ResponseInfo m_response;
 };
