@@ -30,13 +30,14 @@ void r_cb(boost::shared_ptr<CAsyncHttpClient>& pClient, const ResponseInfo& r)
 
 void f()
 {
-    std::map<std::string, std::string> headers;
-    std::string body;
+    HttpRequest req;
+    req.SetUrl("http://www.baidu.com/123");
+
     while (1)
     {
         boost::shared_ptr<CAsyncHttpClient> pClient = boost::make_shared<CAsyncHttpClient>(boost::ref(g_io_service), 5);
         //pClient->makeGet(boost::bind(r_cb, pClient, _1), "www.google.com", headers, "");
-        pClient->makePost(boost::bind(r_cb, pClient, _1), "http://www.baidu.com/123", headers, "", body);
+        pClient->makePost(boost::bind(r_cb, pClient, _1), req);
         boost::this_thread::sleep(boost::posix_time::seconds(1));
     }
 }
