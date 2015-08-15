@@ -226,12 +226,11 @@ private:
                 std::string headers_exactly = headers_contained.substr(0, headers_pos + 4);
                 content_when_header = headers_contained.substr(headers_pos + 4);
 
-                feed_response(headers_exactly, "");
-                HTTP_CLIENT_INFO << "response headers:\r\n" << m_response.raw_response;
-                if (!parse_response_headers(m_response.raw_response, m_response))
+                HTTP_CLIENT_INFO << "response headers:\r\n" << headers_exactly;
+                if (!parse_response_headers(headers_exactly, m_response))
                 {
-                    m_response.error_msg = "can not parse response header, invalid header, header:\r\n"
-                        + m_response.raw_response;
+                    m_response.error_msg = "can not parse response header, invalid header:\r\n"
+                        + headers_exactly;
                     HTTP_CLIENT_ERROR << m_response.error_msg;
                     break;
                 }
@@ -260,13 +259,15 @@ private:
             {
                 HTTP_CLIENT_INFO << "chunked content";
 
-                std::string chunk_content;
+                std::string all_chunk_content;
                 if (!content_when_header.empty())
                 {
+                    HTTP_CLIENT_INFO << "response chunk:\r\n" << content_when_header;
+                    all_chunk_content += content_when_header;
+
                     std::string content;
-                    if (reach_chunk_end(content_when_header, chunk_content, content))
+                    if (reach_chunk_end(all_chunk_content, m_response.content))
                     {
-                        feed_response(chunk_content, content);
                         break;
                     }
                 }
@@ -286,10 +287,14 @@ private:
                         break;
                     }
 
+                    std::stringstream cur_ss;
+                    cur_ss << &response_buf;
+                    HTTP_CLIENT_INFO << "response chunk:\r\n" << cur_ss.str();
+                    all_chunk_content += cur_ss.str();
+
                     std::string content;
-                    if (reach_chunk_end(response_buf, chunk_content, content))
+                    if (reach_chunk_end(all_chunk_content, m_response.content))
                     {
-                        feed_response(chunk_content, content);
                         break;
                     }
                 }
@@ -298,7 +303,7 @@ private:
             {
                 HTTP_CLIENT_INFO << "content with content-length";
 
-                feed_response(content_when_header, content_when_header);
+                m_response.content += content_when_header;
                 size_t content_length = boost::lexical_cast<size_t>(m_response.headers["content-length"]);
                 if (content_when_header.size() < content_length)
                 {
@@ -311,14 +316,17 @@ private:
                         m_response.error_msg = ec.message();
                         break;
                     }
-                    feed_response(response_buf, true);
+
+                    std::stringstream cur_ss;
+                    cur_ss << &response_buf;
+                    m_response.content += cur_ss.str();
                 }
             }
             else
             {
                 HTTP_CLIENT_INFO << "recv content till closed";
 
-                feed_response(content_when_header, content_when_header);
+                m_response.content += content_when_header;
                 while (true)
                 {
                     boost::asio::streambuf response_buf;
@@ -333,7 +341,9 @@ private:
                         }
                         break;
                     }
-                    feed_response(response_buf, true);
+                    std::stringstream cur_ss;
+                    cur_ss << &response_buf;
+                    m_response.content += cur_ss.str();
                 }
             }
 
@@ -460,17 +470,13 @@ private:
     //************************************
     // brief:    check if reached ending chunk
     // name:     CHttpClient::reach_chunk_end
-    // param:    std::string & cur_chunk        current chunk
-    // param:    std::string & all_chunk        cur_chunk will be appended to all_chunk, using all_chunk to check
+    // param:    std::string & all_chunk
     // param:    std::string & content          if ending, contains all content parsed from all_chunk, otherwise not-defined
     // return:   bool
     // ps:
     //************************************
-    static bool reach_chunk_end(const std::string& cur_chunk, std::string& all_chunk, std::string& content)
+    static bool reach_chunk_end(std::string& all_chunk, std::string& content)
     {
-        HTTP_CLIENT_INFO << "response chunk:\r\n" << cur_chunk;
-
-        all_chunk += cur_chunk;
         content.clear();
 
         bool reach_end = false;
@@ -504,38 +510,6 @@ private:
         }
 
         return reach_end;
-    }
-
-    //cur_buf can not be const, or you will get an address???
-    static bool reach_chunk_end(boost::asio::streambuf& cur_buf, std::string& all_chunk, std::string& content)
-    {
-        std::stringstream ss;
-        ss << &cur_buf;
-        std::string cur_chunk = ss.str();
-        return reach_chunk_end(cur_chunk, all_chunk, content);
-    }
-
-
-    void feed_response(const std::string& raw, const std::string& content)
-    {
-        m_response.raw_response += raw;
-        m_response.content += content;
-    }
-
-    //cur_buf can not be const, or you will get an address???
-    void feed_response(boost::asio::streambuf& buf, const bool is_content = false)
-    {
-        std::stringstream ss;
-        ss << &buf;
-        std::string s = ss.str();
-        if (is_content)
-        {
-            feed_response(s, s);
-        }
-        else
-        {
-            feed_response(s, "");
-        }
     }
 
 
