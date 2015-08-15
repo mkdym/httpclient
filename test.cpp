@@ -1,4 +1,5 @@
-﻿#include <boost/thread.hpp>
+﻿#define HAS_HTTP_CLIENT_LOG
+#include <boost/thread.hpp>
 #include "asynchttpclient.h"
 
 

@@ -2,6 +2,11 @@
 #include <iostream>
 #include <sstream>
 #include <string>
+
+#if defined(HAS_HTTP_CLIENT_LOG) && (defined(_WIN32) || defined(WIN32))
+#include <Windows.h>
+#endif
+
 #include <boost/algorithm/string.hpp>
 
 
@@ -64,21 +69,29 @@ public:
             break;
         }
 
+        std::string log_time;
         time_t rawtime = time(NULL);
         tm *timeinfo = localtime(&rawtime);
         if (timeinfo)
         {
             const int time_buffer_size = 100;
             char time_buffer[time_buffer_size] = {0};
-            strftime(time_buffer, time_buffer_size, "%Y-%m-%d-%H:%M:%S ", timeinfo);
-            std::cout << time_buffer;
+            strftime(time_buffer, time_buffer_size, "%Y-%m-%d-%H:%M:%S", timeinfo);
+            log_time = time_buffer;
         }
         else
         {
-            std::cout << "unknown time??? ";
+            log_time = "unknown time???";
         }
 
-        std::cout << level.c_str() << "[" << m_file_name.c_str() << ":" << m_line << "] " << m_oss.str().c_str() << std::endl;
+        std::ostringstream oss_msg;
+        oss_msg << log_time << " " << level.c_str() << "[" << m_file_name.c_str() << ":" << m_line << "] " << m_oss.str().c_str();
+
+#if defined(_WIN32) || defined(WIN32)
+        OutputDebugStringA(oss_msg.str().c_str());
+#endif
+        std::cout << oss_msg.str().c_str() << std::endl;
+
 #endif
     }
 
