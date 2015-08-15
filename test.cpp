@@ -1,6 +1,7 @@
 ﻿#define HAS_HTTP_CLIENT_LOG
 #include <boost/thread.hpp>
 #include "asynchttpclient.h"
+#include "synchttpclient.h"
 
 
 boost::asio::io_service g_io_service;
@@ -43,13 +44,28 @@ void f()
 }
 
 
-int main()
+void test_sync()
+{
+    RequestInfo req;
+    req.set_url("http://www.baidu.com/123");
+    req.set_method(METHOD_GET);
+    CSyncHttpClient client(5);
+    const ResponseInfo& r = client.make_request(req);
+}
+
+void test_async()
 {
     boost::thread t(f);
     {
         boost::asio::io_service::work work(g_io_service);
         g_io_service.run();
     }
+}
+
+
+int main()
+{
+    test_async();
     return 0;
 }
 
