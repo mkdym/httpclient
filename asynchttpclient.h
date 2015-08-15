@@ -9,11 +9,13 @@
 #include <boost/algorithm/string.hpp>
 #include <boost/lexical_cast.hpp>
 #include <boost/atomic.hpp>
+#include <boost/thread/condition.hpp>
 
 #include "httpclientlog.h"
 #include "responseinfo.h"
 #include "urlparser.h"
 #include "httputil.h"
+#include "scopedcounter.h"
 
 
 
@@ -54,25 +56,29 @@ public:
         const bool throw_in_cb = false)
         : m_io_service(io_serv)
         , m_timeout(timeout)
+        , m_throw_in_cb(throw_in_cb)
+        , m_sock(m_io_service)
         , m_deadline_timer(io_serv)
         , m_cb_called(false)
-        , m_throw_in_cb(throw_in_cb)
+        , m_counter_busy(0)
         , m_method(METHOD_UNKNOWN)
-        , m_sock(m_io_service)
     {
     }
 
-    //************************************
-    // brief:    destructor
-    // name:
-    // return:
-    // ps:       if have not called cb and no error, call cb with error "abandoned"
-    //************************************
+    //wait for stop
     ~CAsyncHttpClient()
     {
         boost::system::error_code ec;
         m_deadline_timer.cancel(ec);
         m_sock.close(ec);
+
+        boost::lock_guard<boost::mutex> lock_busy(m_mutex_busy);
+        while (m_counter_busy)
+        {
+            HTTP_CLIENT_INFO << "wait not-busy notify";
+            m_cond_busy.wait(m_mutex_busy);
+            HTTP_CLIENT_INFO << "got not-busy notify";
+        }
     }
 
 
@@ -158,6 +164,8 @@ private:
 
     void yield_func(boost::asio::yield_context yield)
     {
+        scoped_counter_cond<int, boost::mutex, boost::condition> counter_cond(m_counter_busy, m_mutex_busy, m_cond_busy);
+
         std::string error_msg;
         do 
         {
@@ -462,7 +470,7 @@ private:
 
     //************************************
     // brief:    check if reached ending chunk
-    // name:     CHttpClient::reach_chunk_end
+    // name:     CAsyncHttpClient::reach_chunk_end
     // param:    std::string & all_chunk
     // param:    std::string & content          if ending, contains all content parsed from all_chunk, otherwise not-defined
     // return:   bool
@@ -508,6 +516,8 @@ private:
 
     void timeout_cb(const boost::system::error_code &ec)
     {
+        scoped_counter_cond<int, boost::mutex, boost::condition> counter_cond(m_counter_busy, m_mutex_busy, m_cond_busy);
+
         if (ec)
         {
             if (ec != boost::asio::error::operation_aborted)
@@ -528,6 +538,7 @@ private:
             DoCallback("");
         }
     }
+
 
     void DoCallback(const std::string& error_msg)
     {
@@ -561,14 +572,21 @@ private:
 private:
     boost::asio::io_service& m_io_service;
     const unsigned short m_timeout;
-    HttpClientCallback m_cb;
-    boost::asio::deadline_timer m_deadline_timer;
-    boost::atomic_bool m_cb_called;
     const bool m_throw_in_cb;
-    HTTP_METHOD m_method;
-    UrlParser m_urlparser;
 
     boost::asio::ip::tcp::socket m_sock;
+
+    boost::asio::deadline_timer m_deadline_timer;
+    boost::atomic_bool m_cb_called;
+
+    boost::condition m_cond_busy;
+    boost::mutex m_mutex_busy;
+    int m_counter_busy;
+
+    HTTP_METHOD m_method;
+    HttpClientCallback m_cb;
+    UrlParser m_urlparser;
+
     std::string m_request_string;
 
     ResponseInfo m_response;
