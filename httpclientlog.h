@@ -89,6 +89,7 @@ public:
 
 #if defined(_WIN32) || defined(WIN32)
         OutputDebugStringA(oss_msg.str().c_str());
+        OutputDebugStringA("\r\n");
 #endif
         std::cout << oss_msg.str().c_str() << std::endl;
 
