@@ -37,7 +37,7 @@ void r_cb(boost::shared_ptr<CAsyncHttpClient>& pClient, const ResponseInfo& r)
 
 void f()
 {
-    while (1)
+    while (true)
     {
         RequestInfo req;
         req.set_url("http://www.baidu.com/123");
@@ -51,11 +51,15 @@ void f()
 
 void test_sync()
 {
-    RequestInfo req;
-    req.set_url("http://www.baidu.com/123");
-    req.set_method(METHOD_GET);
-    CSyncHttpClient client(5);
-    handle_response(client.make_request(req));
+    while (true)
+    {
+        RequestInfo req;
+        req.set_url("http://www.baidu.com/123");
+        req.set_method(METHOD_GET);
+        CSyncHttpClient client(5);
+        handle_response(client.make_request(req));
+        boost::this_thread::sleep(boost::posix_time::seconds(1));
+    }
 }
 
 void test_async()
