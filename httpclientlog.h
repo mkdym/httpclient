@@ -10,12 +10,15 @@
 
 
 
-#if defined(HAS_HTTP_CLIENT_LOG) && defined(_HTTP_WINDOWS)
+#if defined(HAS_HTTP_CLIENT_LOG)
+#if defined(_HTTP_WINDOWS)
 #include <Windows.h>
+#else
+#include <sys/types.h>
+#include <unistd.h>
 #endif
 
 #include <boost/algorithm/string.hpp>
-#include <boost/thread.hpp>
 
 
 
@@ -92,14 +95,17 @@ public:
             log_time = "unknown time???";
         }
 
-        std::ostringstream oss_msg;
-        oss_msg << log_time << " " << level.c_str() << " ["
 #if defined(_HTTP_WINDOWS)
-            << GetCurrentProcessId()
+        unsigned long pid = GetCurrentProcessId();
+        unsigned long tid = GetCurrentThreadId();
 #else
-            << getpid()
+        unsigned long pid = getpid();
+        unsigned long tid = 0;//I don't known how to get it
 #endif
-            << ":" << boost::this_thread::get_id() << "]"
+
+        std::ostringstream oss_msg;
+        oss_msg << log_time << " " << level.c_str()
+            << " [" << pid << ":" << tid << "]"
             << " [" << m_file_name.c_str() << ":" << m_line << "]"
             << " " << m_oss.str().c_str();
 
