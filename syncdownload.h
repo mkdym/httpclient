@@ -23,7 +23,6 @@ public:
     //ps: content of responseinfo will be empty
     const ResponseInfo& download(const RequestInfo& req, const std::string& filename)
     {
-        ResponseInfo error_response;
         do 
         {
             boost::filesystem::path p(filename);
@@ -33,9 +32,9 @@ public:
                 boost::filesystem::create_directories(p.parent_path(), ec);
                 if (ec)
                 {
-                    error_response.error_msg = "create dir[";
-                    error_response.error_msg += p.parent_path().string() + "] error: " + ec.message();
-                    HTTP_CLIENT_ERROR << error_response.error_msg;
+                    m_error_response.error_msg = "create dir[";
+                    m_error_response.error_msg += p.parent_path().string() + "] error: " + ec.message();
+                    HTTP_CLIENT_ERROR << m_error_response.error_msg;
                     break;
                 }
             }
@@ -44,18 +43,18 @@ public:
             unsigned long error_code = HTTP_OS_DEFINE::get_last_error();
             if (!m_file.is_open())
             {
-                error_response.error_msg = "open file[";
-                error_response.error_msg += p.string() + "] fail, error code: "
+                m_error_response.error_msg = "open file[";
+                m_error_response.error_msg += p.string() + "] fail, error code: "
                     + boost::lexical_cast<std::string>(error_code);
-                HTTP_CLIENT_ERROR << error_response.error_msg;
+                HTTP_CLIENT_ERROR << m_error_response.error_msg;
                 break;
             }
             HTTP_CLIENT_INFO << "open file[" << p << "] for downloading success";
 
         } while (false);
-        if (!error_response.error_msg.empty())
+        if (!m_error_response.error_msg.empty())
         {
-            return error_response;
+            return m_error_response;
         }
         else
         {
@@ -75,6 +74,7 @@ private:
 private:
     CSyncHttpClient m_sync_client;
     boost::filesystem::fstream m_file;
+    ResponseInfo m_error_response;
 };
 
 
