@@ -3,7 +3,14 @@
 #include <sstream>
 #include <string>
 
-#if defined(HAS_HTTP_CLIENT_LOG) && (defined(_WIN32) || defined(WIN32))
+
+#if defined(_WIN32) || defined(WIN32)
+#define _HTTP_WINDOWS
+#endif
+
+
+
+#if defined(HAS_HTTP_CLIENT_LOG) && defined(_HTTP_WINDOWS)
 #include <Windows.h>
 #endif
 
@@ -53,19 +60,19 @@ public:
         switch (_level)
         {
         case HTTP_LOG_LEVEL_INFO:
-            level = "INFO  ";
+            level = "INFO ";
             break;
 
         case HTTP_LOG_LEVEL_WARN:
-            level = "WARN  ";
+            level = "WARN ";
             break;
 
         case HTTP_LOG_LEVEL_ERROR:
-            level = "ERROR ";
+            level = "ERROR";
             break;
 
         default:
-            level = "WHAT? ";
+            level = "WHAT?";
             break;
         }
 
@@ -85,9 +92,16 @@ public:
         }
 
         std::ostringstream oss_msg;
-        oss_msg << log_time << " " << level.c_str() << "[" << m_file_name.c_str() << ":" << m_line << "] " << m_oss.str().c_str();
+        oss_msg << log_time << " " << level.c_str()
+#if defined(_HTTP_WINDOWS)
+            << " [" << GetCurrentProcessId() << ":" << GetCurrentThreadId() << "]"
+#else
+            << " [" << getpid() << ":" << pthread_self() << "]"
+#endif
+            << " [" << m_file_name.c_str() << ":" << m_line << "]"
+            << " " << m_oss.str().c_str();
 
-#if defined(_WIN32) || defined(WIN32)
+#if defined(_HTTP_WINDOWS)
         OutputDebugStringA(oss_msg.str().c_str());
         OutputDebugStringA("\r\n");
 #endif
