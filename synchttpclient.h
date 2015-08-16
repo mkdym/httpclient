@@ -23,16 +23,6 @@ public:
     }
 
 public:
-    void set_headers_callback(HttpClientCallback cb)
-    {
-        m_async_client.set_headers_callback(cb);
-    }
-
-    void set_content_callback(ContentCallback cb)
-    {
-        m_async_client.set_content_callback(cb);
-    }
-
     const ResponseInfo& make_request(const RequestInfo& req)
     {
         if (!create_io_run_thread())
@@ -40,7 +30,7 @@ public:
             return m_response;
         }
 
-        m_async_client.make_request(boost::bind(&CSyncHttpClient::cb, this, _1), req);
+        m_async_client.make_request(req, boost::bind(&CSyncHttpClient::cb, this, _1));
         return wait();
     }
 

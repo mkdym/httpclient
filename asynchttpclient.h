@@ -25,6 +25,21 @@ typedef boost::function<void(std::string& cur_content)> ContentCallback;
 
 
 
+namespace
+{
+    inline void default_headers_cb(const ResponseInfo& r)
+    {
+
+    }
+
+    inline void default_content_cb(std::string& cur_content)
+    {
+
+    }
+}
+
+
+
 //async http client class
 //class is designed to make one request in one instance's lifetime
 //you may get error when making request again
@@ -51,15 +66,13 @@ public:
         , m_cb_called(false)
         , m_counter_busy(0)
         , m_method(METHOD_UNKNOWN)
-        , m_has_headers_cb(false)
-        , m_has_content_cb(false)
     {
     }
 
     //wait for stop
     ~CAsyncHttpClient()
     {
-        m_has_headers_cb = m_has_content_cb = false;
+        HTTP_CLIENT_INFO << "finish http";
 
         boost::system::error_code ec;
         m_deadline_timer.cancel(ec);
@@ -74,23 +87,10 @@ public:
         }
     }
 
-
-    void set_headers_callback(HttpClientCallback cb)
+    void make_request(const RequestInfo& req, HttpClientCallback response_cb,
+        HttpClientCallback headers_cb = default_headers_cb,
+        ContentCallback content_cb = default_content_cb)
     {
-        m_headers_cb = cb;
-        m_has_headers_cb = true;
-    }
-
-    void set_content_callback(ContentCallback cb)
-    {
-        m_content_cb = cb;
-        m_has_content_cb = true;
-    }
-
-
-    void make_request(HttpClientCallback cb, const RequestInfo& req)
-    {
-        m_response_cb = cb;
         m_method = req.m_method;
         m_hostname = req.gethostname();
         m_servicename = req.getservicename();
@@ -100,15 +100,19 @@ public:
         //start timeout
         m_deadline_timer.expires_from_now(boost::posix_time::seconds(m_timeout));
         m_deadline_timer.async_wait(boost::bind(&CAsyncHttpClient::timeout_cb, this,
-            boost::asio::placeholders::error));
-        boost::asio::spawn(m_io_service, boost::bind(&CAsyncHttpClient::yield_func, this, _1));
+            response_cb, boost::asio::placeholders::error));
+        boost::asio::spawn(m_io_service, boost::bind(&CAsyncHttpClient::yield_func, this,
+            response_cb, headers_cb, content_cb, _1));
     }
 
 
 private:
-    void yield_func(boost::asio::yield_context yield)
+    void yield_func(HttpClientCallback& response_cb,
+        HttpClientCallback& headers_cb, ContentCallback& content_cb,
+        boost::asio::yield_context yield)
     {
-        scoped_counter_cond<int, boost::mutex, boost::condition> counter_cond(m_counter_busy, m_mutex_busy, m_cond_busy);
+        scoped_counter_cond<int, boost::mutex, boost::condition>
+            counter_cond(m_counter_busy, m_mutex_busy, m_cond_busy);
 
         std::string error_msg;
         do 
@@ -183,7 +187,7 @@ private:
                     break;
                 }
 
-                do_headers_callback();
+                do_headers_callback(headers_cb);
             }
 
             /*
@@ -220,7 +224,7 @@ private:
                     std::string content;
                     if (reach_chunk_end(all_chunk_content, m_response.content))
                     {
-                        do_content_callback();
+                        do_content_callback(content_cb);
                         break;
                     }
                 }
@@ -248,17 +252,18 @@ private:
                     std::string content;
                     if (reach_chunk_end(all_chunk_content, m_response.content))
                     {
-                        do_content_callback();
+                        do_content_callback(content_cb);
                         break;
                     }
                 }
             }
-            else if (0 == m_response.headers.count("transfer-encoding") && m_response.headers.count("content-length"))
+            else if (0 == m_response.headers.count("transfer-encoding")
+                && m_response.headers.count("content-length"))
             {
                 HTTP_CLIENT_INFO << "content with content-length";
 
                 m_response.content += content_when_header;
-                do_content_callback();
+                do_content_callback(content_cb);
                 size_t content_length = boost::lexical_cast<size_t>(m_response.headers["content-length"]);
                 if (content_when_header.size() < content_length)
                 {
@@ -275,7 +280,7 @@ private:
                     std::stringstream cur_ss;
                     cur_ss << &response_buf;
                     m_response.content += cur_ss.str();
-                    do_content_callback();
+                    do_content_callback(content_cb);
                 }
             }
             else
@@ -283,7 +288,7 @@ private:
                 HTTP_CLIENT_INFO << "recv content till closed";
 
                 m_response.content += content_when_header;
-                do_content_callback();
+                do_content_callback(content_cb);
                 while (true)
                 {
                     boost::asio::streambuf response_buf;
@@ -301,7 +306,7 @@ private:
                     std::stringstream cur_ss;
                     cur_ss << &response_buf;
                     m_response.content += cur_ss.str();
-                    do_content_callback();
+                    do_content_callback(content_cb);
                 }
             }
 
@@ -309,7 +314,7 @@ private:
 
         } while (false);
 
-        do_response_callback(error_msg);
+        do_response_callback(response_cb, error_msg);
     }
 
 
@@ -405,9 +410,10 @@ private:
     }
 
 
-    void timeout_cb(const boost::system::error_code &ec)
+    void timeout_cb(HttpClientCallback& response_cb, const boost::system::error_code &ec)
     {
-        scoped_counter_cond<int, boost::mutex, boost::condition> counter_cond(m_counter_busy, m_mutex_busy, m_cond_busy);
+        scoped_counter_cond<int, boost::mutex, boost::condition>
+            counter_cond(m_counter_busy, m_mutex_busy, m_cond_busy);
 
         if (ec)
         {
@@ -415,7 +421,7 @@ private:
             {
                 std::string error_msg = "timeout callback encountered an error:" + ec.message();
                 HTTP_CLIENT_ERROR << error_msg;
-                do_response_callback(error_msg);
+                do_response_callback(response_cb, error_msg);
             }
             else
             {
@@ -426,51 +432,45 @@ private:
         {
             HTTP_CLIENT_ERROR << "timeout";
             m_response.timeout = true;
-            do_response_callback("");
+            do_response_callback(response_cb, "");
         }
     }
 
-    void do_headers_callback()
+    void do_headers_callback(HttpClientCallback& headers_cb)
     {
-        if (m_has_headers_cb)
+        try
         {
-            try
+            headers_cb(m_response);
+        }
+        catch (...)
+        {
+            HTTP_CLIENT_ERROR << "exception happened in headers callback function";
+            if (m_throw_in_cb)
             {
-                m_headers_cb(m_response);
-            }
-            catch (...)
-            {
-                HTTP_CLIENT_ERROR << "exception happened in headers callback function";
-                if (m_throw_in_cb)
-                {
-                    HTTP_CLIENT_INFO << "throw";
-                    throw;
-                }
+                HTTP_CLIENT_INFO << "throw";
+                throw;
             }
         }
     }
 
-    void do_content_callback()
+    void do_content_callback(ContentCallback& content_cb)
     {
-        if (m_has_content_cb)
+        try
         {
-            try
+            content_cb(m_response.content);
+        }
+        catch (...)
+        {
+            HTTP_CLIENT_ERROR << "exception happened in content callback function";
+            if (m_throw_in_cb)
             {
-                m_content_cb(m_response.content);
-            }
-            catch (...)
-            {
-                HTTP_CLIENT_ERROR << "exception happened in content callback function";
-                if (m_throw_in_cb)
-                {
-                    HTTP_CLIENT_INFO << "throw";
-                    throw;
-                }
+                HTTP_CLIENT_INFO << "throw";
+                throw;
             }
         }
     }
 
-    void do_response_callback(const std::string& error_msg)
+    void do_response_callback(HttpClientCallback& response_cb, const std::string& error_msg)
     {
         //确保不会执行回调多次
         bool called_expected = false;
@@ -484,7 +484,7 @@ private:
 
             try
             {
-                m_response_cb(m_response);
+                response_cb(m_response);
             }
             catch (...)
             {
@@ -513,16 +513,10 @@ private:
     boost::mutex m_mutex_busy;
     int m_counter_busy;
 
-    HttpClientCallback m_response_cb;
     HTTP_METHOD m_method;
     std::string m_hostname;
     std::string m_servicename;
     std::string m_request_string;
-
-    bool m_has_headers_cb;
-    HttpClientCallback m_headers_cb;
-    bool m_has_content_cb;
-    ContentCallback m_content_cb;
 
     ResponseInfo m_response;
 };
