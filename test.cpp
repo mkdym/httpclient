@@ -108,7 +108,7 @@ void test_sync_download()
     while (true)
     {
         CSyncHttpDownload client(5);
-        handle_response(client.download("http://7xia8f.com2.z0.glb.qiniucdn.com/luascript/general.lua", "D:\\123.lua"));
+        handle_response(client.download("https://www.google.com", "D:\\test_download.txt"));
         boost::this_thread::sleep(boost::posix_time::seconds(1));
     }
 }

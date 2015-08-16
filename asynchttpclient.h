@@ -21,7 +21,8 @@
 //http client callback function
 typedef boost::function<void(const ResponseInfo& r)> HttpClientCallback;
 //content callback function. non-const-reference, you can modify the content
-typedef boost::function<void(std::string& cur_content)> ContentCallback;
+//when return false, http will be stopped
+typedef boost::function<bool(std::string& cur_content)> ContentCallback;
 
 
 
@@ -31,8 +32,9 @@ namespace
     {
     }
 
-    inline void default_content_cb(std::string& cur_content)
+    inline bool default_content_cb(std::string& cur_content)
     {
+        return true;
     }
 }
 
@@ -261,7 +263,12 @@ private:
                 HTTP_CLIENT_INFO << "content with content-length";
 
                 m_response.content += content_when_header;
-                do_content_callback(content_cb);
+                if (!do_content_callback(content_cb))
+                {
+                    HTTP_CLIENT_INFO << "content call back return false";
+                    break;
+                }
+
                 size_t content_length = boost::lexical_cast<size_t>(m_response.headers["content-length"]);
                 if (content_when_header.size() < content_length)
                 {
@@ -286,7 +293,12 @@ private:
                 HTTP_CLIENT_INFO << "recv content till closed";
 
                 m_response.content += content_when_header;
-                do_content_callback(content_cb);
+                if (!do_content_callback(content_cb))
+                {
+                    HTTP_CLIENT_INFO << "content call back return false";
+                    break;
+                }
+
                 while (true)
                 {
                     boost::asio::streambuf response_buf;
@@ -304,7 +316,11 @@ private:
                     std::stringstream cur_ss;
                     cur_ss << &response_buf;
                     m_response.content += cur_ss.str();
-                    do_content_callback(content_cb);
+                    if (!do_content_callback(content_cb))
+                    {
+                        HTTP_CLIENT_INFO << "content call back return false";
+                        break;
+                    }
                 }
             }
 
@@ -451,21 +467,24 @@ private:
         }
     }
 
-    void do_content_callback(ContentCallback& content_cb)
+    bool do_content_callback(ContentCallback& content_cb)
     {
+        bool bReturn = false;
         try
         {
-            content_cb(m_response.content);
+            bReturn = content_cb(m_response.content);
         }
         catch (...)
         {
-            HTTP_CLIENT_ERROR << "exception happened in content callback function";
+            m_response.error_msg = "exception happened in content callback function";
+            HTTP_CLIENT_ERROR << m_response.error_msg;
             if (m_throw_in_cb)
             {
                 HTTP_CLIENT_INFO << "throw";
                 throw;
             }
         }
+        return bReturn;
     }
 
     void do_response_callback(HttpClientCallback& response_cb, const std::string& error_msg)

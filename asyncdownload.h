@@ -78,10 +78,11 @@ public:
     }
 
 private:
-    void content_cb(std::string& cur_content)
+    bool content_cb(std::string& cur_content)
     {
         m_file << cur_content;
         cur_content.clear();
+        return true;
     }
 
 private:
