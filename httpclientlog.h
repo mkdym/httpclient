@@ -71,13 +71,12 @@ public:
         }
 
         std::string log_time;
-        time_t rawtime = time(NULL);
-        tm *timeinfo = localtime(&rawtime);
-        if (timeinfo)
+        tm timeinfo = {0};
+        if (0 == HTTP_OS_DEFINE::localtime_t(time(NULL), timeinfo))
         {
             const int time_buffer_size = 100;
             char time_buffer[time_buffer_size] = {0};
-            strftime(time_buffer, time_buffer_size, "%Y-%m-%d-%H:%M:%S", timeinfo);
+            strftime(time_buffer, time_buffer_size, "%Y-%m-%d-%H:%M:%S", &timeinfo);
             log_time = time_buffer;
         }
         else

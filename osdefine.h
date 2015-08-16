@@ -6,6 +6,8 @@
 #endif
 
 
+#include <time.h>
+
 #if defined(_HTTP_WINDOWS)
 #include <Windows.h>
 #else
@@ -51,6 +53,16 @@ namespace HTTP_OS_DEFINE
         OutputDebugStringA("\r\n");
 #else
         //
+#endif
+    }
+
+    int localtime_t(const time_t& _time, tm& _tm)
+    {
+#if defined(_HTTP_WINDOWS)
+        return localtime_s(&_tm, &_time);
+#else
+        localtime_r(&_time, &_tm);
+        return 0;
 #endif
     }
 }
