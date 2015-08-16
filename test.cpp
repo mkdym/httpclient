@@ -31,7 +31,8 @@ void handle_response(const ResponseInfo& r)
 }
 
 
-void cb_async_http(boost::shared_ptr<CAsyncHttpClient>& pClient, const ResponseInfo& r)
+void cb_async_http(boost::shared_ptr<CAsyncHttpClient>& pClient,
+                   const ResponseInfo& r)
 {
     handle_response(r);
 }
@@ -44,7 +45,8 @@ void thread_async()
         RequestInfo req;
         req.set_url("http://www.baidu.com/123");
         req.set_method(METHOD_GET);
-        boost::shared_ptr<CAsyncHttpClient> pClient = boost::make_shared<CAsyncHttpClient>(boost::ref(g_io_service), 5);
+        boost::shared_ptr<CAsyncHttpClient> pClient
+            = boost::make_shared<CAsyncHttpClient>(boost::ref(g_io_service), 5);
         pClient->make_request(req, boost::bind(cb_async_http, pClient, _1));
         boost::this_thread::sleep(boost::posix_time::seconds(1));
     }
@@ -75,7 +77,8 @@ void test_async()
 }
 
 
-void cb_async_download(boost::shared_ptr<CAsyncHttpDownload>& pClient, const ResponseInfo& r)
+void cb_async_download(boost::shared_ptr<CAsyncHttpDownload>& pClient,
+                       const ResponseInfo& r)
 {
     handle_response(r);
 }
@@ -85,9 +88,13 @@ void download_async()
 {
     while (true)
     {
-        boost::shared_ptr<CAsyncHttpDownload> pClient = boost::make_shared<CAsyncHttpDownload>(boost::ref(g_io_service), 5);
-        pClient->download("https://www.google.com",
-            "D:\\test_download.txt", boost::bind(cb_async_download, pClient, _1));
+        RequestInfo req;
+        req.set_url("http://www.baidu.com/123");
+        req.set_method(METHOD_GET);
+        boost::shared_ptr<CAsyncHttpDownload> pClient
+            = boost::make_shared<CAsyncHttpDownload>(boost::ref(g_io_service), 5);
+        pClient->download(req, "D:\\test_download.txt",
+            boost::bind(cb_async_download, pClient, _1));
         boost::this_thread::sleep(boost::posix_time::seconds(3));
     }
 }
@@ -107,8 +114,11 @@ void test_sync_download()
 {
     while (true)
     {
+        RequestInfo req;
+        req.set_url("http://www.baidu.com/123");
+        req.set_method(METHOD_GET);
         CSyncHttpDownload client(5);
-        handle_response(client.download("https://www.google.com", "D:\\test_download.txt"));
+        handle_response(client.download(req, "D:\\test_download.txt"));
         boost::this_thread::sleep(boost::posix_time::seconds(1));
     }
 }

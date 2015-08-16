@@ -14,7 +14,6 @@ public:
         const bool throw_in_cb = false)
         : m_async_client(io_serv, timeout, throw_in_cb)
     {
-        m_req.set_method(METHOD_GET);
     }
 
     ~CAsyncHttpDownload()
@@ -22,23 +21,8 @@ public:
     }
 
 public:
-    void set_method(const HTTP_METHOD& m)
-    {
-        m_req.set_method(m);
-    }
-
-    void set_http_ver(const std::string& v)
-    {
-        m_req.set_http_ver(v);
-    }
-
-    void add_header(const std::string& key, const std::string& value)
-    {
-        m_req.add_header(key, value);
-    }
-
     //ps: content of responseinfo will be empty
-    bool download(const std::string& url,
+    bool download(const RequestInfo& req,
         const std::string& filename,
         HttpClientCallback response_cb)
     {
@@ -67,8 +51,7 @@ public:
             }
             HTTP_CLIENT_INFO << "open file[" << p << "] for downloading success";
 
-            m_req.set_url(url);
-            m_async_client.make_request(m_req, response_cb, default_headers_cb,
+            m_async_client.make_request(req, response_cb, default_headers_cb,
                 boost::bind(&CAsyncHttpDownload::content_cb, this, _1));
 
             success = true;
@@ -87,7 +70,6 @@ private:
 
 private:
     CAsyncHttpClient m_async_client;
-    RequestInfo m_req;
     boost::filesystem::fstream m_file;
 };
 

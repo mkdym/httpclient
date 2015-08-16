@@ -20,25 +20,10 @@ public:
     }
 
 public:
-    void set_method(const HTTP_METHOD& m)
-    {
-        m_req.set_method(m);
-    }
-
-    void set_http_ver(const std::string& v)
-    {
-        m_req.set_http_ver(v);
-    }
-
-    void add_header(const std::string& key, const std::string& value)
-    {
-        m_req.add_header(key, value);
-    }
-
     //ps: content of responseinfo will be empty
-    const ResponseInfo& download(const std::string& url, const std::string& filename)
+    const ResponseInfo& download(const RequestInfo& req, const std::string& filename)
     {
-        bool has_error = false;
+        ResponseInfo error_response;
         do 
         {
             boost::filesystem::path p(filename);
@@ -48,9 +33,9 @@ public:
                 boost::filesystem::create_directories(p.parent_path(), ec);
                 if (ec)
                 {
-                    m_error_response.error_msg = "create dir[";
-                    m_error_response.error_msg += p.parent_path().string() + "] error: " + ec.message();
-                    HTTP_CLIENT_ERROR << m_error_response.error_msg;
+                    error_response.error_msg = "create dir[";
+                    error_response.error_msg += p.parent_path().string() + "] error: " + ec.message();
+                    HTTP_CLIENT_ERROR << error_response.error_msg;
                     break;
                 }
             }
@@ -59,23 +44,22 @@ public:
             unsigned long error_code = HTTP_OS_DEFINE::get_last_error();
             if (!m_file.is_open())
             {
-                m_error_response.error_msg = "open file[";
-                m_error_response.error_msg += p.string() + "] fail, error code: "
+                error_response.error_msg = "open file[";
+                error_response.error_msg += p.string() + "] fail, error code: "
                     + boost::lexical_cast<std::string>(error_code);
-                HTTP_CLIENT_ERROR << m_error_response.error_msg;
+                HTTP_CLIENT_ERROR << error_response.error_msg;
                 break;
             }
             HTTP_CLIENT_INFO << "open file[" << p << "] for downloading success";
 
         } while (false);
-        if (has_error)
+        if (!error_response.error_msg.empty())
         {
-            return m_error_response;
+            return error_response;
         }
         else
         {
-            m_req.set_url(url);
-            return m_sync_client.make_request(m_req, default_headers_cb,
+            return m_sync_client.make_request(req, default_headers_cb,
                 boost::bind(&CSyncHttpDownload::content_cb, this, _1));
         }
     }
@@ -90,9 +74,7 @@ private:
 
 private:
     CSyncHttpClient m_sync_client;
-    RequestInfo m_req;
     boost::filesystem::fstream m_file;
-    ResponseInfo m_error_response;
 };
 
 
