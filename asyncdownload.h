@@ -3,7 +3,6 @@
 #include <boost/filesystem/fstream.hpp>
 #include "osdefine.h"
 #include "asynchttpclient.h"
-#include "synchttpclient.h"
 
 
 
@@ -69,8 +68,7 @@ public:
             HTTP_CLIENT_INFO << "open file[" << p << "] for downloading success";
 
             m_req.set_url(url);
-            m_async_client.make_request(m_req, response_cb,
-                boost::bind(&CAsyncHttpDownload::headers_cb, this, _1),
+            m_async_client.make_request(m_req, response_cb, default_headers_cb,
                 boost::bind(&CAsyncHttpDownload::content_cb, this, _1));
 
             success = true;
@@ -80,10 +78,6 @@ public:
     }
 
 private:
-    void headers_cb(const ResponseInfo& r)
-    {
-    }
-
     void content_cb(std::string& cur_content)
     {
         m_file << cur_content;

@@ -29,12 +29,10 @@ namespace
 {
     inline void default_headers_cb(const ResponseInfo& r)
     {
-
     }
 
     inline void default_content_cb(std::string& cur_content)
     {
-
     }
 }
 

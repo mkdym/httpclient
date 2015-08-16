@@ -23,14 +23,16 @@ public:
     }
 
 public:
-    const ResponseInfo& make_request(const RequestInfo& req)
+    const ResponseInfo& make_request(const RequestInfo& req,
+        HttpClientCallback headers_cb = default_headers_cb,
+        ContentCallback content_cb = default_content_cb)
     {
         if (!create_io_run_thread())
         {
             return m_response;
         }
 
-        m_async_client.make_request(req, boost::bind(&CSyncHttpClient::cb, this, _1));
+        m_async_client.make_request(req, boost::bind(&CSyncHttpClient::cb, this, _1), headers_cb, content_cb);
         return wait();
     }
 

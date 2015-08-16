@@ -2,7 +2,8 @@
 #include <boost/thread.hpp>
 #include "asynchttpclient.h"
 #include "synchttpclient.h"
-#include "httpdownload.h"
+#include "asyncdownload.h"
+#include "syncdownload.h"
 
 
 boost::asio::io_service g_io_service;
@@ -98,6 +99,17 @@ void test_async_download()
     {
         boost::asio::io_service::work work(g_io_service);
         g_io_service.run();
+    }
+}
+
+
+void test_sync_download()
+{
+    while (true)
+    {
+        CSyncHttpDownload client(5);
+        handle_response(client.download("http://7xia8f.com2.z0.glb.qiniucdn.com/luascript/general.lua", "D:\\123.lua"));
+        boost::this_thread::sleep(boost::posix_time::seconds(1));
     }
 }
 
