@@ -2,24 +2,11 @@
 #include <iostream>
 #include <sstream>
 #include <string>
-
-
-#if defined(_WIN32) || defined(WIN32)
-#define _HTTP_WINDOWS
-#endif
-
-
+#include <boost/algorithm/string.hpp>
 
 #if defined(HAS_HTTP_CLIENT_LOG)
-#if defined(_HTTP_WINDOWS)
-#include <Windows.h>
-#else
-#include <sys/types.h>
-#include <unistd.h>
+#include "osdefine.h"
 #endif
-#endif
-
-#include <boost/algorithm/string.hpp>
 
 
 
@@ -50,12 +37,14 @@ public:
         : m_file_name(file)
         , m_line(line)
     {
+#if defined(HAS_HTTP_CLIENT_LOG)
         size_t pos = m_file_name.find_last_of("/\\");
         if (std::string::npos != pos)
         {
             m_file_name = m_file_name.substr(pos);
             boost::algorithm::trim_if(m_file_name, boost::algorithm::is_any_of("/\\"));
         }
+#endif
     }
 
     ~CAsyncHttpClientLog()
@@ -96,24 +85,13 @@ public:
             log_time = "unknown time???";
         }
 
-#if defined(_HTTP_WINDOWS)
-        unsigned long pid = GetCurrentProcessId();
-        unsigned long tid = GetCurrentThreadId();
-#else
-        unsigned long pid = getpid();
-        unsigned long tid = 0;//I don't known how to get it
-#endif
-
         std::ostringstream oss_msg;
         oss_msg << log_time << " " << level.c_str()
-            << " [" << pid << ":" << tid << "]"
+            << " [" << HTTP_OS_DEFINE::get_pid() << ":" << HTTP_OS_DEFINE::get_tid() << "]"
             << " [" << m_file_name.c_str() << ":" << m_line << "]"
             << " " << m_oss.str().c_str();
 
-#if defined(_HTTP_WINDOWS)
-        OutputDebugStringA(oss_msg.str().c_str());
-        OutputDebugStringA("\r\n");
-#endif
+        HTTP_OS_DEFINE::output_debug_string(oss_msg.str());
         std::cout << oss_msg.str().c_str() << std::endl;
 
 #endif
