@@ -20,7 +20,8 @@ public:
     }
 
 public:
-    //ps: content of responseinfo will be empty
+    //param filename: filename for writing data
+    //like CAsyncHttpDownload::download, content of responseinfo will be empty
     const ResponseInfo& download(const RequestInfo& req, const std::string& filename)
     {
         if (!prepare_file(filename, m_error_response.error_msg))

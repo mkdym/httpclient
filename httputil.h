@@ -49,7 +49,7 @@ namespace HttpUtil
     // param:    const std::string & kv_sep                             separator between key and value
     // param:    const std::string & pair_sep                           separator between key-value pairs
     // return:   std::string
-    // ps:       
+    // remarks:
     //************************************
     inline std::string build_kv_string(const std::map<std::string, std::string>& kv_param,
         const std::string& kv_sep = "=", const std::string& pair_sep = "&")
@@ -65,16 +65,7 @@ namespace HttpUtil
         return s;
     }
 
-    //************************************
-    // brief:    tool function, transform string style param to key-value style param using given separator, see above
-    // name:     parse_kv_string
-    // param:    const std::string & s
-    // param:    std::map<std::string, std::string> & kv_param
-    // param:    const std::string & kv_sep
-    // param:    const std::string & pair_sep
-    // return:   void
-    // ps:       
-    //************************************
+    //tool function, transform string style param to key-value style param using given separator, see above
     inline void parse_kv_string(const std::string& s, std::map<std::string, std::string>& kv_param,
         const std::string& kv_sep = "=", const std::string& pair_sep = "&")
     {
@@ -104,11 +95,11 @@ namespace HttpUtil
 
 
     //************************************
-    // brief:    tool function, url encode/decode
+    // brief:    tool function, url encode
     // name:     url_encode
     // param:    const std::string & s
     // return:   std::string
-    // ps:       
+    // remarks:
     //************************************
     inline std::string url_encode(const std::string& s)
     {
@@ -134,7 +125,7 @@ namespace HttpUtil
         return strEncoded;
     }
 
-    //see above
+    //url decode, see above
     inline std::string url_decode(const std::string& s)
     {
         std::string strDecoded;

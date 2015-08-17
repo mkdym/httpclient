@@ -58,7 +58,7 @@ public:
     // param:    const unsigned short timeout           timeout setting, seconds
     // param:    const bool throw_in_cb                 if true, throw when exception in cb, otherwise, no-throw
     // return:   
-    // ps:      
+    // remarks:
     //************************************
     CAsyncHttpClient(boost::asio::io_service& io_serv,
         const unsigned short timeout,
@@ -92,6 +92,16 @@ public:
         }
     }
 
+    //************************************
+    // brief:    make request
+    // name:     CAsyncHttpClient::make_request
+    // param:    const RequestInfo & req
+    // param:    ResponseCallback response_cb
+    // param:    HeadersCallback headers_cb             optional
+    // param:    ContentCallback content_cb             oprional
+    // return:   void
+    // remarks:
+    //************************************
     void make_request(const RequestInfo& req,
         ResponseCallback response_cb,
         HeadersCallback headers_cb = default_headers_cb,
@@ -208,7 +218,7 @@ private:
             3. check if contained Transfer-Encoding, and no chunked, recv content until eof
             4. check if contained Content-Length, recv content with exactly length
             5. else, recv until eof
-            ps: do not consider "multipart/byteranges"
+            remarks: do not consider "multipart/byteranges"
             */
 
             //do not use m_response.content.size() to calculate remaining data length for reading,
@@ -390,7 +400,7 @@ private:
     // param:    std::string & all_chunk
     // param:    std::string & content          if ending, contains all content parsed from all_chunk, otherwise not-defined
     // return:   bool
-    // ps:
+    // remarks:
     //************************************
     static bool reach_chunk_end(const std::string& all_chunk, std::string& content)
     {
@@ -508,7 +518,7 @@ private:
 
     void do_response_callback(ResponseCallback& response_cb, const std::string& error_msg)
     {
-        //确保不会执行回调多次
+        //ensure only call one time
         bool called_expected = false;
         if (m_cb_called.compare_exchange_strong(called_expected, true))
         {

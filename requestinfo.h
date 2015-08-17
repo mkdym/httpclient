@@ -67,6 +67,7 @@ public:
         m_body += std::string(reinterpret_cast<const char *>(p), len);
     }
 
+private:
     const std::string& gethostname() const
     {
         return m_urlparser.host_part;

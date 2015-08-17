@@ -22,6 +22,7 @@ enum HTTP_LOG_LEVEL
 
 //log for debug
 //if need, define macro HAS_HTTP_CLIENT_LOG
+//you can modify the macros to satisfy your log library
 //generally, do not use info level, use debug level
 //as a release library, it should output log as little as possible
 //and as we know, debug log is always discarded when release

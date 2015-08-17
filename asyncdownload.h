@@ -23,8 +23,15 @@ public:
     }
 
 public:
-    //ps: content of responseinfo will be empty
-    //may call response_cb in function
+    //************************************
+    // brief:    download
+    // name:     CAsyncHttpDownload::download
+    // param:    const RequestInfo & req
+    // param:    const std::string & filename                   filename for writing data
+    // param:    ResponseCallback response_cb
+    // return:   void
+    // remarks:  content of responseinfo will be empty
+    //************************************
     void download(const RequestInfo& req,
         const std::string& filename,
         ResponseCallback response_cb)
