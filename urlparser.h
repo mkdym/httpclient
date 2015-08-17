@@ -93,7 +93,7 @@ struct UrlParser
             service = proto;
         }
 
-        HTTP_CLIENT_INFO << "url[" << url << "] parse result:\r\n"
+        HTTP_CLIENT_DEBUG << "url[" << url << "] parse result:\r\n"
             << "host_all=" << host_all
             << ", path=" << path
             << ", host_part=" << host_part

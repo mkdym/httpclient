@@ -49,7 +49,7 @@ public:
                 HTTP_CLIENT_ERROR << m_error_response.error_msg;
                 break;
             }
-            HTTP_CLIENT_INFO << "open file[" << p << "] for downloading success";
+            HTTP_CLIENT_DEBUG << "open file[" << p << "] for downloading success";
 
         } while (false);
         if (!m_error_response.error_msg.empty())

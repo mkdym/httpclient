@@ -72,7 +72,7 @@ public:
     //wait for stop
     ~CAsyncHttpClient()
     {
-        HTTP_CLIENT_INFO << "finish http";
+        HTTP_CLIENT_DEBUG << "finish http";
 
         boost::system::error_code ec;
         m_deadline_timer.cancel(ec);
@@ -81,9 +81,9 @@ public:
         boost::lock_guard<boost::mutex> lock_busy(m_mutex_busy);
         while (m_counter_busy)
         {
-            HTTP_CLIENT_INFO << "wait not-busy notify";
+            HTTP_CLIENT_DEBUG << "wait not-busy notify";
             m_cond_busy.wait(m_mutex_busy);
-            HTTP_CLIENT_INFO << "got not-busy notify";
+            HTTP_CLIENT_DEBUG << "got not-busy notify";
         }
     }
 
@@ -95,7 +95,7 @@ public:
         m_hostname = req.gethostname();
         m_servicename = req.getservicename();
         m_request_string = req.build_as_string();
-        HTTP_CLIENT_INFO << "request_string:\r\n" << m_request_string;
+        HTTP_CLIENT_DEBUG << "request_string:\r\n" << m_request_string;
 
         //start timeout
         m_deadline_timer.expires_from_now(boost::posix_time::seconds(m_timeout));
@@ -178,7 +178,7 @@ private:
                 std::string headers_exactly = headers_contained.substr(0, headers_pos + 4);
                 content_when_header = headers_contained.substr(headers_pos + 4);
 
-                HTTP_CLIENT_INFO << "response headers:\r\n" << headers_exactly;
+                HTTP_CLIENT_DEBUG << "response headers:\r\n" << headers_exactly;
                 if (!parse_response_headers(headers_exactly, m_response))
                 {
                     error_msg = "can not parse response header, invalid header:\r\n"
@@ -208,17 +208,17 @@ private:
                 || 304 == m_response.status_code
                 || METHOD_HEAD == m_method)
             {
-                HTTP_CLIENT_INFO <<"no content";
+                HTTP_CLIENT_DEBUG <<"no content";
             }
             else if (m_response.headers.count("transfer-encoding")
                 && boost::algorithm::icontains(m_response.headers["transfer-encoding"], "chunked"))
             {
-                HTTP_CLIENT_INFO << "chunked content";
+                HTTP_CLIENT_DEBUG << "chunked content";
 
                 std::string all_chunk_content;
                 if (!content_when_header.empty())
                 {
-                    HTTP_CLIENT_INFO << "response chunk:\r\n" << content_when_header;
+                    HTTP_CLIENT_DEBUG << "response chunk:\r\n" << content_when_header;
                     all_chunk_content += content_when_header;
 
                     std::string content;
@@ -246,7 +246,7 @@ private:
 
                     std::stringstream cur_ss;
                     cur_ss << &response_buf;
-                    HTTP_CLIENT_INFO << "response chunk:\r\n" << cur_ss.str();
+                    HTTP_CLIENT_DEBUG << "response chunk:\r\n" << cur_ss.str();
                     all_chunk_content += cur_ss.str();
 
                     std::string content;
@@ -260,12 +260,12 @@ private:
             else if (0 == m_response.headers.count("transfer-encoding")
                 && m_response.headers.count("content-length"))
             {
-                HTTP_CLIENT_INFO << "content with content-length";
+                HTTP_CLIENT_DEBUG << "content with content-length";
 
                 m_response.content += content_when_header;
                 if (!do_content_callback(content_cb))
                 {
-                    HTTP_CLIENT_INFO << "content call back return false";
+                    HTTP_CLIENT_WARN << "content call back return false";
                     break;
                 }
 
@@ -290,12 +290,12 @@ private:
             }
             else
             {
-                HTTP_CLIENT_INFO << "recv content till closed";
+                HTTP_CLIENT_DEBUG << "recv content till closed";
 
                 m_response.content += content_when_header;
                 if (!do_content_callback(content_cb))
                 {
-                    HTTP_CLIENT_INFO << "content call back return false";
+                    HTTP_CLIENT_WARN << "content call back return false";
                     break;
                 }
 
@@ -318,13 +318,13 @@ private:
                     m_response.content += cur_ss.str();
                     if (!do_content_callback(content_cb))
                     {
-                        HTTP_CLIENT_INFO << "content call back return false";
+                        HTTP_CLIENT_WARN << "content call back return false";
                         break;
                     }
                 }
             }
 
-            HTTP_CLIENT_INFO << "response content:\r\n" << m_response.content;
+            HTTP_CLIENT_DEBUG << "response content:\r\n" << m_response.content;
 
         } while (false);
 
@@ -439,7 +439,7 @@ private:
             }
             else
             {
-                HTTP_CLIENT_INFO << "timeout callback was canceled";
+                HTTP_CLIENT_DEBUG << "timeout callback was canceled";
             }
         }
         else
@@ -461,7 +461,7 @@ private:
             HTTP_CLIENT_ERROR << "exception happened in headers callback function";
             if (m_throw_in_cb)
             {
-                HTTP_CLIENT_INFO << "throw";
+                HTTP_CLIENT_DEBUG << "throw";
                 throw;
             }
         }
@@ -480,7 +480,7 @@ private:
             HTTP_CLIENT_ERROR << m_response.error_msg;
             if (m_throw_in_cb)
             {
-                HTTP_CLIENT_INFO << "throw";
+                HTTP_CLIENT_DEBUG << "throw";
                 throw;
             }
         }
@@ -508,7 +508,7 @@ private:
                 HTTP_CLIENT_ERROR << "exception happened in response callback function";
                 if (m_throw_in_cb)
                 {
-                    HTTP_CLIENT_INFO << "throw";
+                    HTTP_CLIENT_DEBUG << "throw";
                     throw;
                 }
             }

@@ -56,7 +56,7 @@ public:
                 HTTP_CLIENT_ERROR << error_response.error_msg;
                 break;
             }
-            HTTP_CLIENT_INFO << "open file[" << p << "] for downloading success";
+            HTTP_CLIENT_DEBUG << "open file[" << p << "] for downloading success";
 
         } while (false);
         if (!error_response.error_msg.empty())
@@ -70,7 +70,7 @@ public:
                 HTTP_CLIENT_ERROR << "exception happened in response callback function";
                 if (m_throw_in_cb)
                 {
-                    HTTP_CLIENT_INFO << "throw";
+                    HTTP_CLIENT_DEBUG << "throw";
                     throw;
                 }
             }

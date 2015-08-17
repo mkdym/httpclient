@@ -12,6 +12,7 @@
 
 enum HTTP_LOG_LEVEL
 {
+    HTTP_LOG_LEVEL_DEBUG,
     HTTP_LOG_LEVEL_INFO,
     HTTP_LOG_LEVEL_WARN,
     HTTP_LOG_LEVEL_ERROR,
@@ -21,9 +22,13 @@ enum HTTP_LOG_LEVEL
 
 //log for debug
 //if need, define macro HAS_HTTP_CLIENT_LOG
-#define HTTP_CLIENT_INFO     HTTP_CLIENT_LOG(HTTP_LOG_LEVEL_INFO)
-#define HTTP_CLIENT_WARN     HTTP_CLIENT_LOG(HTTP_LOG_LEVEL_WARN)
-#define HTTP_CLIENT_ERROR    HTTP_CLIENT_LOG(HTTP_LOG_LEVEL_ERROR)
+//generally, do not use info level, use debug level
+//as a release library, it should output log as little as possible
+//and as we know, debug log is always discarded when release
+#define HTTP_CLIENT_DEBUG       HTTP_CLIENT_LOG(HTTP_LOG_LEVEL_DEBUG)
+#define HTTP_CLIENT_INFO        HTTP_CLIENT_LOG(HTTP_LOG_LEVEL_INFO)
+#define HTTP_CLIENT_WARN        HTTP_CLIENT_LOG(HTTP_LOG_LEVEL_WARN)
+#define HTTP_CLIENT_ERROR       HTTP_CLIENT_LOG(HTTP_LOG_LEVEL_ERROR)
 
 
 #define HTTP_CLIENT_LOG(_level) CAsyncHttpClientLog<_level>(__FILE__, __LINE__).stream()
@@ -53,6 +58,10 @@ public:
         std::string level;
         switch (_level)
         {
+        case HTTP_LOG_LEVEL_DEBUG:
+            level = "DEBUG";
+            break;
+
         case HTTP_LOG_LEVEL_INFO:
             level = "INFO ";
             break;

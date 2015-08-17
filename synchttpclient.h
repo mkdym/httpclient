@@ -75,10 +75,10 @@ private:
 
     const ResponseInfo& wait()
     {
-        HTTP_CLIENT_INFO << "waiting http result";
+        HTTP_CLIENT_DEBUG << "waiting http result";
         boost::lock_guard<boost::mutex> cb_lock(m_cb_mutex);
         m_cb_cond.wait(m_cb_mutex);
-        HTTP_CLIENT_INFO << "got http result";
+        HTTP_CLIENT_DEBUG << "got http result";
         return m_response;
     }
 
