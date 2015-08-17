@@ -23,36 +23,7 @@ public:
     //ps: content of responseinfo will be empty
     const ResponseInfo& download(const RequestInfo& req, const std::string& filename)
     {
-        do 
-        {
-            boost::filesystem::path p(filename);
-            if (p.has_parent_path())
-            {
-                boost::system::error_code ec;
-                boost::filesystem::create_directories(p.parent_path(), ec);
-                if (ec)
-                {
-                    m_error_response.error_msg = "create dir[";
-                    m_error_response.error_msg += p.parent_path().string() + "] error: " + ec.message();
-                    HTTP_CLIENT_ERROR << m_error_response.error_msg;
-                    break;
-                }
-            }
-
-            m_file.open(p, std::ios_base::out | std::ios_base::binary | std::ios_base::app);
-            unsigned long error_code = HTTP_OS_DEFINE::get_last_error();
-            if (!m_file.is_open())
-            {
-                m_error_response.error_msg = "open file[";
-                m_error_response.error_msg += p.string() + "] fail, error code: "
-                    + boost::lexical_cast<std::string>(error_code);
-                HTTP_CLIENT_ERROR << m_error_response.error_msg;
-                break;
-            }
-            HTTP_CLIENT_DEBUG << "open file[" << p << "] for downloading success";
-
-        } while (false);
-        if (!m_error_response.error_msg.empty())
+        if (!prepare_file(filename, m_error_response.error_msg))
         {
             return m_error_response;
         }
@@ -66,9 +37,63 @@ public:
 private:
     bool content_cb(std::string& cur_content, std::string& error_msg)
     {
-        m_file << cur_content;
-        cur_content.clear();
-        return true;
+        error_msg.clear();
+        try
+        {
+            m_file << cur_content;
+        }
+        catch (std::exception& e)
+        {
+            error_msg = "write to file fail, error: ";
+            error_msg += e.what();
+        }
+
+        if (error_msg.empty())
+        {
+            cur_content.clear();
+            return true;
+        }
+        else
+        {
+            HTTP_CLIENT_ERROR << error_msg;
+            return false;
+        }
+    }
+
+    bool prepare_file(const std::string& filename, std::string& error_msg)
+    {
+        bool success = false;
+        do 
+        {
+            boost::filesystem::path p(filename);
+            if (p.has_parent_path())
+            {
+                boost::system::error_code ec;
+                boost::filesystem::create_directories(p.parent_path(), ec);
+                if (ec)
+                {
+                    error_msg = "create dir[";
+                    error_msg += p.parent_path().string() + "] error: " + ec.message();
+                    HTTP_CLIENT_ERROR << error_msg;
+                    break;
+                }
+            }
+
+            m_file.open(p, std::ios_base::out | std::ios_base::binary | std::ios_base::app);
+            unsigned long error_code = HTTP_OS_DEFINE::get_last_error();
+            if (!m_file.is_open())
+            {
+                error_msg = "open file[";
+                error_msg += p.string() + "] fail, error code: "
+                    + boost::lexical_cast<std::string>(error_code);
+                HTTP_CLIENT_ERROR << error_msg;
+                break;
+            }
+            HTTP_CLIENT_DEBUG << "open file[" << p << "] for downloading success";
+            success = true;
+
+        } while (false);
+        return success;
     }
 
 private:

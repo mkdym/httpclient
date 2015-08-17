@@ -95,7 +95,7 @@ void download_async()
             = boost::make_shared<CAsyncHttpDownload>(boost::ref(g_io_service), 5);
         pClient->download(req, "D:\\test_download.txt",
             boost::bind(cb_async_download, pClient, _1));
-        boost::this_thread::sleep(boost::posix_time::seconds(3));
+        boost::this_thread::sleep(boost::posix_time::seconds(1));
     }
 }
 
