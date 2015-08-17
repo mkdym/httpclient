@@ -27,7 +27,7 @@ public:
     //may call response_cb in function
     void download(const RequestInfo& req,
         const std::string& filename,
-        HttpClientCallback response_cb)
+        ResponseCallback response_cb)
     {
         ResponseInfo error_response;
         do 
@@ -78,12 +78,12 @@ public:
         else
         {
             m_async_client.make_request(req, response_cb, default_headers_cb,
-                boost::bind(&CAsyncHttpDownload::content_cb, this, _1));
+                boost::bind(&CAsyncHttpDownload::content_cb, this, _1, _2));
         }
     }
 
 private:
-    bool content_cb(std::string& cur_content)
+    bool content_cb(std::string& cur_content, std::string& error_msg)
     {
         m_file << cur_content;
         cur_content.clear();

@@ -24,7 +24,7 @@ public:
 
 public:
     const ResponseInfo& make_request(const RequestInfo& req,
-        HttpClientCallback headers_cb = default_headers_cb,
+        HeadersCallback headers_cb = default_headers_cb,
         ContentCallback content_cb = default_content_cb)
     {
         if (!create_io_run_thread())

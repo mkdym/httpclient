@@ -59,12 +59,12 @@ public:
         else
         {
             return m_sync_client.make_request(req, default_headers_cb,
-                boost::bind(&CSyncHttpDownload::content_cb, this, _1));
+                boost::bind(&CSyncHttpDownload::content_cb, this, _1, _2));
         }
     }
 
 private:
-    bool content_cb(std::string& cur_content)
+    bool content_cb(std::string& cur_content, std::string& error_msg)
     {
         m_file << cur_content;
         cur_content.clear();
