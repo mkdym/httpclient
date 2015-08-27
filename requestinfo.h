@@ -2,6 +2,7 @@
 #include <string>
 #include <map>
 #include <sstream>
+#include <boost/lexical_cast.hpp>
 
 #include "urlparser.h"
 
@@ -68,14 +69,22 @@ public:
     }
 
 private:
-    const std::string& gethostname() const
+    std::string gethostname() const
     {
         return m_urlparser.host_part;
     }
 
-    const std::string& getservicename() const
+    //for getaddrinfo, if no port, use proto
+    std::string getservicename() const
     {
-        return m_urlparser.service;
+        if (m_urlparser.port)
+        {
+            return boost::lexical_cast<std::string>(m_urlparser.port);
+        }
+        else
+        {
+            return m_urlparser.proto;
+        }
     }
 
     std::string build_as_string() const

@@ -1,7 +1,6 @@
 ﻿#pragma once
 #include <string>
 #include <boost/algorithm/string.hpp>
-#include <boost/lexical_cast.hpp>
 
 #include "httpclientlog.h"
 
@@ -21,8 +20,8 @@ struct UrlParser
     std::string query_param;
     //port number. 0 if not specified
     unsigned short port;
-    //for getaddrinfo, if no port, use proto
-    std::string service;
+    //protocol, always before "://" in url, http(default) or https,...
+    std::string proto;
 
 
     UrlParser()
@@ -84,27 +83,14 @@ struct UrlParser
             host_part = host_all;
         }
 
-        if (port)//if no port, use proto
-        {
-            service = boost::lexical_cast<std::string>(port);
-        }
-        else
-        {
-            service = proto;
-        }
-
         HTTP_CLIENT_DEBUG << "url[" << url << "] parse result:\r\n"
             << "host_all=" << host_all
             << ", path=" << path
             << ", host_part=" << host_part
             << ", query_param=" << query_param
             << ", port=" << port
-            << ", service=" << service;
+            << ", proto=" << proto;
     }
-
-private:
-    //protocol, always before "://" in url, http(default) or https,...
-    std::string proto;
 };
 
 
