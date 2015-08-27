@@ -23,6 +23,11 @@ public:
     }
 
 public:
+    void set_proxy(const ProxyInfo& proxy)
+    {
+        m_async_client.set_proxy(proxy);
+    }
+
     const ResponseInfo& make_request(const RequestInfo& req,
         HeadersCallback headers_cb = default_headers_cb,
         ContentCallback content_cb = default_content_cb)

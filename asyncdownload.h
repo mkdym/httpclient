@@ -23,6 +23,11 @@ public:
     }
 
 public:
+    void set_proxy(const ProxyInfo& proxy)
+    {
+        m_async_client.set_proxy(proxy);
+    }
+
     //************************************
     // brief:    download
     // name:     CAsyncHttpDownload::download

@@ -20,6 +20,11 @@ public:
     }
 
 public:
+    void set_proxy(const ProxyInfo& proxy)
+    {
+        m_sync_client.set_proxy(proxy);
+    }
+
     //param filename: filename for writing data
     //like CAsyncHttpDownload::download, content of responseinfo will be empty
     const ResponseInfo& download(const RequestInfo& req, const std::string& filename)
