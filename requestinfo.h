@@ -4,8 +4,8 @@
 #include <sstream>
 #include <boost/lexical_cast.hpp>
 
+#include "httputil.h"
 #include "urlparser.h"
-
 
 
 
@@ -30,6 +30,7 @@ public:
     RequestInfo()
         : m_method(METHOD_GET)
         , m_http_ver("HTTP/1.1")
+        , m_should_encode_path(true)
     {
     }
 
@@ -66,6 +67,11 @@ public:
     void add_body(const void *p, const size_t len)
     {
         m_body += std::string(reinterpret_cast<const char *>(p), len);
+    }
+
+    void enbale_path_encode(const bool enabled)
+    {
+        m_should_encode_path = enabled;
     }
 
 private:
@@ -139,7 +145,27 @@ private:
         {
             ss << m_urlparser.proto << "://";
         }
-        ss << m_urlparser.host_all << m_urlparser.path;
+        ss << m_urlparser.host_all;
+
+        if (m_should_encode_path)
+        {
+            std::string encoded_path;
+            std::vector<std::string> paths;
+            boost::algorithm::split(paths, m_urlparser.path, boost::algorithm::is_any_of("/"));
+            for (std::vector<std::string>::const_iterator iter_path = paths.begin();
+                iter_path != paths.end();
+                ++iter_path)
+            {
+                encoded_path += HttpUtil::url_encode(*iter_path) + "/";
+            }
+            boost::algorithm::trim_if(encoded_path, boost::algorithm::is_any_of("/"));
+            ss << "/" << encoded_path;
+        }
+        else
+        {
+            ss << m_urlparser.path;
+        }
+
         if (!query_param_all.empty())
         {
             ss << "?" << query_param_all;
@@ -173,6 +199,7 @@ private:
     std::string m_query_param;
     std::map<std::string, std::string> m_headers;
     std::string m_body;
+    bool m_should_encode_path;
 
     UrlParser m_urlparser;
 };
