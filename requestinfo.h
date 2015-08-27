@@ -98,28 +98,29 @@ private:
         switch (m_method)
         {
         case METHOD_POST:
-            ss << "POST ";
+            ss << "POST";
             break;
 
         case METHOD_GET:
-            ss << "GET ";
+            ss << "GET";
             break;
 
         case METHOD_PUT:
-            ss << "PUT ";
+            ss << "PUT";
             break;
 
         case METHOD_DELETE:
-            ss << "DELETE ";
+            ss << "DELETE";
             break;
 
         case METHOD_HEAD:
-            ss << "HEAD ";
+            ss << "HEAD";
             break;
 
         default:
             break;
         }
+        ss << " ";
 
         //construct complete query_param
         std::string query_param_all;
@@ -132,7 +133,13 @@ private:
             query_param_all = m_urlparser.query_param + m_query_param;
         }
 
-        ss << m_urlparser.path;
+        //in the first line, use the complete url for dealing with proxy
+        //http://www.jmarshall.com/easy/http/#proxies
+        if (!m_urlparser.proto.empty())
+        {
+            ss << m_urlparser.proto << "://";
+        }
+        ss << m_urlparser.host_all << m_urlparser.path;
         if (!query_param_all.empty())
         {
             ss << "?" << query_param_all;

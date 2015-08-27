@@ -47,6 +47,11 @@ void thread_async()
         req.set_method(METHOD_GET);
         boost::shared_ptr<CAsyncHttpClient> pClient
             = boost::make_shared<CAsyncHttpClient>(boost::ref(g_io_service), 5);
+        /*ProxyInfo proxy;
+        proxy.type = PROXY_HTTP;
+        proxy.server = "127.0.0.1";
+        proxy.port = 8888;
+        pClient->set_proxy(proxy);*/
         pClient->make_request(req, boost::bind(cb_async_http, pClient, _1));
         boost::this_thread::sleep(boost::posix_time::seconds(1));
     }

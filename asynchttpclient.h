@@ -13,6 +13,7 @@
 #include "httpclientlog.h"
 #include "responseinfo.h"
 #include "requestinfo.h"
+#include "proxyinfo.h"
 #include "httputil.h"
 #include "scopedcounter.h"
 
@@ -72,6 +73,7 @@ public:
         , m_counter_busy(0)
         , m_method(METHOD_UNKNOWN)
     {
+        m_proxy.type = PROXY_NO;
     }
 
     //wait for stop
@@ -92,6 +94,12 @@ public:
         }
     }
 
+    //set proxy stting
+    void set_proxy(const ProxyInfo& proxy)
+    {
+        m_proxy = proxy;
+    }
+
     //************************************
     // brief:    make request
     // name:     CAsyncHttpClient::make_request
@@ -108,8 +116,18 @@ public:
         ContentCallback content_cb = default_content_cb)
     {
         m_method = req.m_method;
-        m_hostname = req.gethostname();
-        m_servicename = req.getservicename();
+
+        if (m_proxy.type != PROXY_NO)
+        {
+            m_hostname = m_proxy.server;
+            m_servicename = boost::lexical_cast<std::string>(m_proxy.port);
+        }
+        else
+        {
+            m_hostname = req.gethostname();
+            m_servicename = req.getservicename();
+        }
+
         m_request_string = req.build_as_string();
         HTTP_CLIENT_DEBUG << "request_string:\r\n" << m_request_string;
 
@@ -564,6 +582,7 @@ private:
     int m_counter_busy;
 
     HTTP_METHOD m_method;
+    ProxyInfo m_proxy;
     std::string m_hostname;
     std::string m_servicename;
     std::string m_request_string;
