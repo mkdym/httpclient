@@ -23,6 +23,10 @@ void handle_response(const ResponseInfo& r)
     {
         std::cout << "unknown error" << std::endl;
     }
+    else if (200 != r.status_code)
+    {
+        std::cout << "http error: " << r.status_code << ", " << r.status_msg << std::endl;
+    }
     else
     {
         std::cout << "response size=" << r.content.size()
