@@ -7,6 +7,7 @@ A C++ HTTP client library mainly based on boost.asio, boost.coroutine.
 * headers only
 * designed to make asynchronous http request
 * provide synchronous http, asynchronous/synchronous download request, all based on asynchronous http request
+* support HTTP proxy
 * can be integrated with other log libraries
 
 ### Examples
@@ -15,7 +16,8 @@ see test.cpp
 
 ### Todo
 
-* set proxy to request
+* support SOCKS4/SOCKS5 proxy
+* support https
 * improve url parser
 * ...
 

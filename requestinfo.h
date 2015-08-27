@@ -27,6 +27,7 @@ class RequestInfo
     friend class CAsyncHttpClient;
 
 public:
+    //default url_encode the path part in url
     RequestInfo()
         : m_method(METHOD_GET)
         , m_http_ver("HTTP/1.1")
@@ -69,6 +70,7 @@ public:
         m_body += std::string(reinterpret_cast<const char *>(p), len);
     }
 
+    //enable/disable path url_encode in build_as_string
     void enbale_path_encode(const bool enabled)
     {
         m_should_encode_path = enabled;
