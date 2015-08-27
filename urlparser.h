@@ -20,7 +20,7 @@ struct UrlParser
     std::string query_param;
     //port number. 0 if not specified
     unsigned short port;
-    //protocol, always before "://" in url, http(default) or https,...
+    //protocol, always before "://" in url, http or https,...
     std::string proto;
 
 
@@ -37,10 +37,6 @@ struct UrlParser
         {
             proto = url.substr(0, proto_pos);
             boost::algorithm::to_lower(proto);
-        }
-        if (proto.empty())
-        {
-            proto = "http";
         }
 
         proto_pos = (proto_pos == std::string::npos ? 0 : proto_pos + 3);

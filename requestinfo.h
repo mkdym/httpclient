@@ -74,16 +74,20 @@ private:
         return m_urlparser.host_part;
     }
 
-    //for getaddrinfo, if no port, use proto
+    //for getaddrinfo
     std::string getservicename() const
     {
-        if (m_urlparser.port)
+        if (m_urlparser.port)//use port
         {
             return boost::lexical_cast<std::string>(m_urlparser.port);
         }
-        else
+        else if (!m_urlparser.proto.empty())//use proto
         {
             return m_urlparser.proto;
+        }
+        else//if no port, no proto, use http
+        {
+            return "http";
         }
     }
 
